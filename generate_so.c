@@ -1,6 +1,5 @@
-#include <dlfcn.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,22 +16,6 @@ enum sh_flags {
 typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
-
-void print() {
-    void *handle = dlopen("./foo.so", RTLD_NOW);
-    if (!handle) {
-        fprintf(stderr, "dlopen: %s", dlerror());
-        exit(EXIT_FAILURE);
-    }
-
-    char *foo = dlsym(handle, "foo");
-    if (!foo) {
-        fprintf(stderr, "dlsym: %s", dlerror());
-        exit(EXIT_FAILURE);
-    }
-
-    puts(foo); // Prints "bar"
-}
 
 #define MAX_BYTES_SIZE 420420
 u8 bytes[MAX_BYTES_SIZE];
@@ -313,6 +296,4 @@ static void generate_so() {
 
 int main() {
     generate_so();
-
-    // print();
 }

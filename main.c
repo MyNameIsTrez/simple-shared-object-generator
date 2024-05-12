@@ -32,13 +32,7 @@ static void push_zeros(size_t count) {
     }
 }
 
-static void generate_so() {
-    FILE *f = fopen("foo.o", "w");
-    if (!f) {
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
-
+static void push_elf_file_header() {
     // Magic number
     push(0x7f);
     push('E');
@@ -75,7 +69,6 @@ static void generate_so() {
     // No execution entry point address
     push_zeros(8);
 
-    // TODO: Check if it is truly not present
     // No program header table
     push_zeros(8);
 
@@ -90,13 +83,13 @@ static void generate_so() {
     push(0x40);
     push(0);
 
-    // Program header size
+    // Single program header size
     push_zeros(2);
 
     // Number of program header entries
     push_zeros(2);
 
-    // Section header entry size
+    // Single section header entry size
     push(0x40);
     push(0);
 
@@ -107,6 +100,16 @@ static void generate_so() {
     // Index of entry with section names
     push(2);
     push(0);
+}
+
+static void generate_so() {
+    FILE *f = fopen("foo.o", "w");
+    if (!f) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    push_elf_file_header();
 
     fwrite(bytes, sizeof(uint8_t), bytes_len, f);
 

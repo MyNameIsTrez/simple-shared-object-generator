@@ -3,6 +3,20 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+enum sh_type {
+    SHT_PROGBITS = 1, // Program data
+    SHT_SYMTAB = 2, // Symbol table
+};
+
+enum sh_flags {
+    SHF_WRITE = 1, // Writable
+    SHF_ALLOC = 2, // Occupied memory during execution
+};
+
+typedef uint8_t u8;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
 void print() {
     void *handle = dlopen("./foo.so", RTLD_NOW);
     if (!handle) {
@@ -19,17 +33,115 @@ void print() {
     puts(foo); // Prints "bar"
 }
 
-uint8_t bytes[420420];
-size_t bytes_len = 0;
+#define MAX_BYTES_SIZE 420420
+u8 bytes[MAX_BYTES_SIZE];
+size_t bytes_size = 0;
 
-static void push(uint8_t byte) {
-    bytes[bytes_len++] = byte;
+static void push(u8 byte) {
+    if (bytes_size + 1 > MAX_BYTES_SIZE) {
+        fprintf(stderr, "MAX_BYTES_SIZE of %d was exceeded\n", MAX_BYTES_SIZE);
+        exit(EXIT_FAILURE);
+    }
+
+    bytes[bytes_size++] = byte;
 }
 
 static void push_zeros(size_t count) {
     for (size_t i = 0; i < count; i++) {
         push(0);
     }
+}
+
+static void push_number(u64 n, size_t byte_count) {
+    while (n > 0) {
+        // Little-endian requires the least significant byte first
+        push(n & 0xff);
+        byte_count--;
+
+        n >>= 8; // Shift right by one byte
+    }
+
+    // Optional padding
+    push_zeros(byte_count);
+}
+
+static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
+    push_number(name_offset, 4);
+    push_number(type, 4);
+    push_number(flags, 8);
+    push_number(address, 8);
+    push_number(offset, 8);
+    push_number(size, 8);
+    push_number(link, 4);
+    push_number(info, 4);
+    push_number(alignment, 8);
+    push_number(entry_size, 8);
+}
+
+static void push_section_header_table() {
+    // <null> section
+    // 0x40 to 0x80
+    push_zeros(0x40);
+
+    // TODO: ??
+    // 0x80 to 0xc0
+    push_section(
+        0x01,
+        SHT_PROGBITS,
+        SHF_WRITE | SHF_ALLOC,
+        0,
+        0x180,
+        4,
+        0,
+        0,
+        4,
+        0
+    );
+
+    // TODO: ??
+    // 0xc0 to 0x100
+    push_section(
+        0x07,
+        SHT_PROGBITS | SHT_SYMTAB,
+        0,
+        0,
+        0x190,
+        0x21,
+        0,
+        0,
+        1,
+        0
+    );
+
+    // TODO: ??
+    // 0x100 to 0x140
+    push_section(
+        0x11,
+        SHT_SYMTAB,
+        0,
+        0,
+        0x1c0,
+        0x60,
+        4,
+        3,
+        8,
+        0x18
+    );
+
+    // TODO: ??
+    // 0x140 to 0x180
+    push_section(
+        0x19,
+        SHT_PROGBITS | SHT_SYMTAB,
+        0,
+        0,
+        0x220,
+        0x0b,
+        0,
+        0,
+        1,
+        0
+    );
 }
 
 static void push_elf_file_header() {
@@ -109,9 +221,13 @@ static void generate_so() {
         exit(EXIT_FAILURE);
     }
 
+    // 0x0 to 0x40
     push_elf_file_header();
 
-    fwrite(bytes, sizeof(uint8_t), bytes_len, f);
+    // 0x40 to 0x180
+    push_section_header_table();
+
+    fwrite(bytes, sizeof(u8), bytes_size, f);
 
     fclose(f);
 }

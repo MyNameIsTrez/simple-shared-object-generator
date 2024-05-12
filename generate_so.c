@@ -3,6 +3,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+enum e_type {
+    ET_DYN = 3, // Shared object
+};
+
+enum p_type {
+    PT_LOAD = 1, // Loadable segment
+};
+
+enum p_flags {
+    PF_R = 4, // Readable segment
+};
+
 enum sh_type {
     SHT_PROGBITS = 1, // Program data
     SHT_SYMTAB = 2, // Symbol table
@@ -194,7 +206,44 @@ static void push_section_header_table() {
     );
 }
 
-static void push_elf_file_header() {
+static void push_program_header() {
+    // Loadable segment
+    push(PT_LOAD);
+    push_zeros(3);
+
+    // Readable segment
+    push(PF_R);
+    push_zeros(3);
+
+    // Offset of the segment in the file image
+    push_zeros(8);
+
+    // Virtual address of the segment in memory
+    push_zeros(8);
+
+    // On systems where physical address is relevant,
+    // reserved for segment's physical address
+    push_zeros(8);
+
+    // Size in bytes of the segment in the file image (may be 0)
+    push(0);
+    push(0x10);
+    push_zeros(6);
+
+    // Size in bytes of the segment in memory (may be 0)
+    push(0);
+    push(0x10);
+    push_zeros(6);
+
+    // 0 and 1 specify no alignment
+    // Otherwise should be a positive, integral power of 2,
+    // with the virtual address equating the offset modulus this value
+    push(0);
+    push(0x10);
+    push_zeros(6);
+}
+
+static void push_elf_header() {
     // Magic number
     push(0x7f);
     push('E');
@@ -216,8 +265,8 @@ static void push_elf_file_header() {
     // Padding
     push_zeros(8);
 
-    // Relocatable file
-    push(1);
+    // Shared object
+    push(ET_DYN);
     push(0);
 
     // x86-64 instruction set architecture
@@ -231,12 +280,14 @@ static void push_elf_file_header() {
     // No execution entry point address
     push_zeros(8);
 
-    // No program header table
-    push_zeros(8);
-
-    // Section header table offset
+    // Program header table offset
     push(0x40);
     push_zeros(7);
+
+    // Section header table offset
+    push(0xe8);
+    push(0x20);
+    push_zeros(6);
 
     // Processor-specific flags
     push_zeros(4);
@@ -246,47 +297,52 @@ static void push_elf_file_header() {
     push(0);
 
     // Single program header size
-    push_zeros(2);
+    push(0x38);
+    push(0);
 
     // Number of program header entries
-    push_zeros(2);
+    push(4);
+    push(0);
 
     // Single section header entry size
     push(0x40);
     push(0);
 
     // Number of section header entries
-    push(5);
+    push(0xb);
     push(0);
 
     // Index of entry with section names
-    push(2);
+    push(0xa);
     push(0);
 }
 
 static void generate_so() {
-    FILE *f = fopen("foo.o", "w");
+    FILE *f = fopen("foo.so", "w");
     if (!f) {
         perror("fopen");
         exit(EXIT_FAILURE);
     }
 
     // 0x0 to 0x40
-    push_elf_file_header();
+    push_elf_header();
 
-    // 0x40 to 0x180
+    push_program_header();
+
+    // TODO: ? to TODO: ?
     push_section_header_table();
 
-    // 0x180 to 0x190
+    // TODO: ? to TODO: ?
     push_data();
 
-    // 0x190 to 0x1b1
+    // TODO: ? to TODO: ?
     push_section_names();
 
-    // 0x1c0 to 0x220
+    // TODO: ? to TODO: ?
     push_symbol_table();
 
     // 0x220 to end
+    // TODO: ? to end
     push_symbol_entry_names();
 
     fwrite(bytes, sizeof(u8), bytes_size, f);

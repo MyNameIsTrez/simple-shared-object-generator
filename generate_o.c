@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+enum e_type {
+    ET_REL = 1, // Relocatable file
+};
+
 enum sh_type {
     SHT_PROGBITS = 1, // Program data
     SHT_SYMTAB = 2, // Symbol table
@@ -194,7 +198,7 @@ static void push_section_header_table() {
     );
 }
 
-static void push_elf_file_header() {
+static void push_elf_header() {
     // Magic number
     push(0x7f);
     push('E');
@@ -217,7 +221,7 @@ static void push_elf_file_header() {
     push_zeros(8);
 
     // Relocatable file
-    push(1);
+    push(ET_REL);
     push(0);
 
     // x86-64 instruction set architecture
@@ -272,7 +276,7 @@ static void generate_o() {
     }
 
     // 0x0 to 0x40
-    push_elf_file_header();
+    push_elf_header();
 
     // 0x40 to 0x180
     push_section_header_table();

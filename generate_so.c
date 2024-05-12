@@ -9,9 +9,11 @@ enum e_type {
 
 enum p_type {
     PT_LOAD = 1, // Loadable segment
+    PT_DYNAMIC = 2, // Dynamic linking information
 };
 
 enum p_flags {
+    PF_W = 2, // Writable segment
     PF_R = 4, // Readable segment
 };
 
@@ -206,41 +208,15 @@ static void push_section_header_table() {
     );
 }
 
-static void push_program_header() {
-    // Loadable segment
-    push(PT_LOAD);
-    push_zeros(3);
-
-    // Readable segment
-    push(PF_R);
-    push_zeros(3);
-
-    // Offset of the segment in the file image
-    push_zeros(8);
-
-    // Virtual address of the segment in memory
-    push_zeros(8);
-
-    // On systems where physical address is relevant,
-    // reserved for segment's physical address
-    push_zeros(8);
-
-    // Size in bytes of the segment in the file image (may be 0)
-    push(0);
-    push(0x10);
-    push_zeros(6);
-
-    // Size in bytes of the segment in memory (may be 0)
-    push(0);
-    push(0x10);
-    push_zeros(6);
-
-    // 0 and 1 specify no alignment
-    // Otherwise should be a positive, integral power of 2,
-    // with the virtual address equating the offset modulus this value
-    push(0);
-    push(0x10);
-    push_zeros(6);
+static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
+    push_number(type, 4);
+    push_number(flags, 4);
+    push_number(offset, 8);
+    push_number(virtual_address, 8);
+    push_number(physical_address, 8);
+    push_number(file_size, 8);
+    push_number(mem_size, 8);
+    push_number(alignment, 8);
 }
 
 static void push_elf_header() {
@@ -327,7 +303,11 @@ static void generate_so() {
     // 0x0 to 0x40
     push_elf_header();
 
-    push_program_header();
+    // 0x40 to 0x120
+    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
+    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f40, 0x1f40, 0x1f40, 0xc4, 0xc4, 0x1000);
+    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f40, 0x1f40, 0x1f40, 0xc0, 0xc0, 8);
+    push_program_header(0x6474e552, PF_R, 0x1f40, 0x1f40, 0x1f40, 0xc0, 0xc0, 1);
 
     // TODO: ? to TODO: ?
     push_section_header_table();

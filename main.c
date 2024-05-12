@@ -67,6 +67,44 @@ static void push_symbol_entry_names() {
     push_zeros(5);
 }
 
+// TODO: I don't know the algorithm behind this
+static void push_symbol_table() {
+    push_zeros(0x10);
+
+    push_zeros(8);
+
+    // Not sure if this is two groups of four bytes,
+    // or one group of eight bytes
+    push(1);
+    push(0);
+    push(0);
+    push(0);
+    push(4);
+    push(0);
+    push(0xf1);
+    push(0xff);
+
+    push_zeros(0x10);
+
+    push_zeros(4);
+    push(3);
+    push(0);
+    push(1);
+    push_zeros(9);
+
+    push_zeros(8);
+    push(7);
+    push(0);
+    push(0);
+    push(0);
+    push(0x10);
+    push(0);
+    push(1);
+    push(0);
+
+    push_zeros(0x10);
+}
+
 static void push_section_names() {
     push(0);
     push_string(".data");
@@ -142,7 +180,7 @@ static void push_section_header_table() {
         0
     );
 
-    // TODO: ??
+    // Symbol table section
     // 0x100 to 0x140
     push_section(
         0x11,
@@ -151,13 +189,13 @@ static void push_section_header_table() {
         0,
         0x1c0,
         0x60,
-        4, // The section header index of the associated string table
+        4, // Section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
         3, // One greater than the symbol table index of the last local symbol (binding STB_LOCAL)
         8,
         0x18
     );
 
-    // Symbol entry names
+    // Symbol entry names section
     // 0x140 to 0x180
     push_section(
         0x19,
@@ -263,7 +301,7 @@ static void generate_so() {
     push_section_names();
 
     // 0x1c0 to 0x220
-    // push_; // TODO:
+    push_symbol_table();
 
     // 0x220 to end
     push_symbol_entry_names();

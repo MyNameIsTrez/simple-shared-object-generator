@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 enum sh_type {
     SHT_PROGBITS = 1, // Program data
@@ -10,7 +11,7 @@ enum sh_type {
 
 enum sh_flags {
     SHF_WRITE = 1, // Writable
-    SHF_ALLOC = 2, // Occupied memory during execution
+    SHF_ALLOC = 2, // Occupies memory during execution
 };
 
 typedef uint8_t u8;
@@ -52,6 +53,34 @@ static void push_zeros(size_t count) {
     }
 }
 
+static void push_string(char *str) {
+    for (size_t i = 0; i < strlen(str); i++) {
+        push(str[i]);
+    }
+    push('\0');
+}
+
+static void push_symbol_entry_names() {
+    push(0);
+    push_string("foo.s");
+    push_string("foo");
+    push_zeros(5);
+}
+
+static void push_section_names() {
+    push(0);
+    push_string(".data");
+    push_string(".shstrtab");
+    push_string(".symtab");
+    push_string(".strtab");
+    push_zeros(15);
+}
+
+static void push_data() {
+    push_string("bar");
+    push_zeros(12);
+}
+
 static void push_number(u64 n, size_t byte_count) {
     while (n > 0) {
         // Little-endian requires the least significant byte first
@@ -79,11 +108,11 @@ static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 
 }
 
 static void push_section_header_table() {
-    // <null> section
+    // Null section
     // 0x40 to 0x80
     push_zeros(0x40);
 
-    // TODO: ??
+    // Data section
     // 0x80 to 0xc0
     push_section(
         0x01,
@@ -98,7 +127,7 @@ static void push_section_header_table() {
         0
     );
 
-    // TODO: ??
+    // Names section
     // 0xc0 to 0x100
     push_section(
         0x07,
@@ -122,13 +151,13 @@ static void push_section_header_table() {
         0,
         0x1c0,
         0x60,
-        4,
-        3,
+        4, // The section header index of the associated string table
+        3, // One greater than the symbol table index of the last local symbol (binding STB_LOCAL)
         8,
         0x18
     );
 
-    // TODO: ??
+    // Symbol entry names
     // 0x140 to 0x180
     push_section(
         0x19,
@@ -226,6 +255,18 @@ static void generate_so() {
 
     // 0x40 to 0x180
     push_section_header_table();
+
+    // 0x180 to 0x190
+    push_data();
+
+    // 0x190 to 0x1b1
+    push_section_names();
+
+    // 0x1c0 to 0x220
+    // push_; // TODO:
+
+    // 0x220 to end
+    push_symbol_entry_names();
 
     fwrite(bytes, sizeof(u8), bytes_size, f);
 

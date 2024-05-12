@@ -208,6 +208,11 @@ static void push_section_header_table() {
     );
 }
 
+static void push_sections() {
+    // TODO: See the "Address" headers under "Section headers", with `readelf -a foo.so`, which has the address 120 for example
+    // push(1);
+}
+
 static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
     push_number(type, 4);
     push_number(flags, 4);
@@ -285,11 +290,11 @@ static void push_elf_header() {
     push(0);
 
     // Number of section header entries
-    push(0xb);
+    push(11);
     push(0);
 
     // Index of entry with section names
-    push(0xa);
+    push(10);
     push(0);
 }
 
@@ -309,21 +314,23 @@ static void generate_so() {
     push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f40, 0x1f40, 0x1f40, 0xc0, 0xc0, 8);
     push_program_header(0x6474e552, PF_R, 0x1f40, 0x1f40, 0x1f40, 0xc0, 0xc0, 1);
 
-    // TODO: ? to TODO: ?
-    push_section_header_table();
+    push_sections();
 
     // TODO: ? to TODO: ?
-    push_data();
+    // push_section_header_table();
 
     // TODO: ? to TODO: ?
-    push_section_names();
+    // push_data();
 
     // TODO: ? to TODO: ?
-    push_symbol_table();
+    // push_section_names();
+
+    // TODO: ? to TODO: ?
+    // push_symbol_table();
 
     // 0x220 to end
     // TODO: ? to end
-    push_symbol_entry_names();
+    // push_symbol_entry_names();
 
     fwrite(bytes, sizeof(u8), bytes_size, f);
 

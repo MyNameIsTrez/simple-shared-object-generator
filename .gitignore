@@ -1,3 +1,5 @@
 a.out
 foo.o
 foo.so
+goal_foo_so.hex
+my_foo_so.hex

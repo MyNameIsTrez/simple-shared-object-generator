@@ -290,11 +290,11 @@ static void push_elf_header() {
     push(0);
 
     // Number of section header entries
-    push(11);
+    push(10);
     push(0);
 
     // Index of entry with section names
-    push(10);
+    push(9);
     push(0);
 }
 
@@ -310,9 +310,9 @@ static void generate_so() {
 
     // 0x40 to 0x120
     push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
-    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f40, 0x1f40, 0x1f40, 0xc4, 0xc4, 0x1000);
-    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f40, 0x1f40, 0x1f40, 0xc0, 0xc0, 8);
-    push_program_header(0x6474e552, PF_R, 0x1f40, 0x1f40, 0x1f40, 0xc0, 0xc0, 1);
+    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
+    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
+    push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
     push_sections();
 

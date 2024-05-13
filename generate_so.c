@@ -70,44 +70,6 @@ static void push_string(char *str) {
     push('\0');
 }
 
-// TODO: I don't know the algorithm behind this
-static void push_symbol_table() {
-    push_zeros(0x10);
-
-    push_zeros(8);
-
-    // Not sure if this is two groups of four bytes,
-    // or one group of eight bytes
-    push(1);
-    push(0);
-    push(0);
-    push(0);
-    push(4);
-    push(0);
-    push(0xf1);
-    push(0xff);
-
-    push_zeros(0x10);
-
-    push_zeros(4);
-    push(3);
-    push(0);
-    push(1);
-    push_zeros(9);
-
-    push_zeros(8);
-    push(7);
-    push(0);
-    push(0);
-    push(0);
-    push(0x10);
-    push(0);
-    push(1);
-    push(0);
-
-    push_zeros(0x10);
-}
-
 static void push_shstrtab() {
     push(0);
     push_string(".symtab");
@@ -186,6 +148,15 @@ static void push_dynamic() {
     push_dynamic_entry(DT_NULL, 0);
     push_dynamic_entry(DT_NULL, 0);
     push_dynamic_entry(DT_NULL, 0);
+}
+
+static void push_dynsym() {
+    push_zeros(0x30);
+}
+
+static void push_hash() {
+    push_zeros(0x14);
+    push_zeros(4);
 }
 
 static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -443,8 +414,15 @@ static void generate_so() {
     push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
+    // 0x120 to 0x134
+    push_hash();
+
+    // 0x138 to 0x168
+    push_dynsym();
+
     // TODO: REMOVE!
-    push_zeros(0x1e30);
+    // 0x168 to 0x1f50
+    push_zeros(0x1de8);
 
     // 0x1f50 to 0x2000
     push_dynamic();
@@ -463,9 +441,6 @@ static void generate_so() {
 
     // 0x20e0 to end
     push_section_headers();
-
-    // TODO: ? to TODO: ?
-    // push_symbol_table();
 
     fwrite(bytes, sizeof(u8), bytes_size, f);
 

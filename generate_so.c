@@ -3,8 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum e_type {
-    ET_DYN = 3, // Shared object
+enum d_type {
+    DT_NULL = 0, // Marks the end of the _DYNAMIC array
+    DT_HASH = 4, // The address of the symbol hash table. This table refers to the symbol table indicated by the DT_SYMTAB element
+    DT_STRTAB = 5, // The address of the string table
+    DT_SYMTAB = 6, // The address of the symbol table
+    DT_STRSZ = 10, // The total size, in bytes, of the DT_STRTAB string table
+    DT_SYMENT = 11, // The size, in bytes, of the DT_SYMTAB symbol entry
 };
 
 enum p_type {
@@ -29,6 +34,10 @@ enum sh_type {
 enum sh_flags {
     SHF_WRITE = 1, // Writable
     SHF_ALLOC = 2, // Occupies memory during execution
+};
+
+enum e_type {
+    ET_DYN = 3, // Shared object
 };
 
 typedef uint8_t u8;
@@ -135,6 +144,7 @@ static void push_number(u64 n, size_t byte_count) {
 
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 // We specified the .symtab section to have an entry_size of 0x18 bytes
+// TODO: I am pretty sure the third "size" argument here is actually "offset", seeing the spots we're calling this?
 static void push_symtab_entry(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
     push_number(name, 4);
     push_number(value, 4);
@@ -146,9 +156,9 @@ static void push_symtab_entry(u32 name, u32 value, u32 size, u32 info, u32 other
 
 static void push_symtab() {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    push_symtab_entry(0, 0, 0, 0, 0, 0);
+    push_symtab_entry(0, 0, 0, 0, 0, 0); // "<null>"
     push_symtab_entry(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
-    push_symtab_entry(0, 0xfff10004, 0, 0, 0, 0);
+    push_symtab_entry(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
     push_symtab_entry(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
     push_symtab_entry(16, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
@@ -156,6 +166,26 @@ static void push_symtab() {
 static void push_data() {
     push_string("bar");
     push_zeros(4);
+}
+
+// See https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-42444.html
+static void push_dynamic_entry(u64 tag, u64 value) {
+    push_number(tag, 8);
+    push_number(value, 8);
+}
+
+static void push_dynamic() {
+    push_dynamic_entry(DT_HASH, 0x120);
+    push_dynamic_entry(DT_STRTAB, 0x168);
+    push_dynamic_entry(DT_SYMTAB, 0x138);
+    push_dynamic_entry(DT_STRSZ, 5);
+    push_dynamic_entry(DT_SYMENT, 24);
+    push_dynamic_entry(DT_NULL, 0);
+    push_dynamic_entry(DT_NULL, 0);
+    push_dynamic_entry(DT_NULL, 0);
+    push_dynamic_entry(DT_NULL, 0);
+    push_dynamic_entry(DT_NULL, 0);
+    push_dynamic_entry(DT_NULL, 0);
 }
 
 static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -414,7 +444,10 @@ static void generate_so() {
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
     // TODO: REMOVE!
-    push_zeros(0x1ee0);
+    push_zeros(0x1e30);
+
+    // 0x1f50 to 0x2000
+    push_dynamic();
 
     // 0x2000 to 0x2008
     push_data();

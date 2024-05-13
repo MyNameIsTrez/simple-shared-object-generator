@@ -61,13 +61,6 @@ static void push_string(char *str) {
     push('\0');
 }
 
-static void push_strtab() {
-    push(0);
-    push_string("foo.s");
-    push_string("_DYNAMIC");
-    push_string("foo");
-}
-
 // TODO: I don't know the algorithm behind this
 static void push_symbol_table() {
     push_zeros(0x10);
@@ -118,6 +111,13 @@ static void push_shstrtab() {
     push_string(".dynamic");
     push_string(".data");
     push_zeros(2);
+}
+
+static void push_strtab() {
+    push(0);
+    push_string("foo.s");
+    push_string("_DYNAMIC");
+    push_string("foo");
 }
 
 static void push_data() {
@@ -394,7 +394,13 @@ static void generate_so() {
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
     // TODO: REMOVE!
-    push_zeros(0x1f60);
+    push_zeros(0x1ee0);
+
+    // 0x2000 to 0x2004
+    push_data();
+
+    // TODO: REMOVE!
+    push_zeros(0x70);
 
     // 0x2080 to 0x2094
     push_strtab();
@@ -404,9 +410,6 @@ static void generate_so() {
 
     // 0x20e0 to end
     push_section_headers();
-
-    // TODO: ? to TODO: ?
-    // push_data();
 
     // TODO: ? to TODO: ?
     // push_symbol_table();

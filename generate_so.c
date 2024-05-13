@@ -120,11 +120,6 @@ static void push_strtab() {
     push_string("foo");
 }
 
-static void push_data() {
-    push_string("bar");
-    push_zeros(12);
-}
-
 static void push_number(u64 n, size_t byte_count) {
     while (n > 0) {
         // Little-endian requires the least significant byte first
@@ -136,6 +131,31 @@ static void push_number(u64 n, size_t byte_count) {
 
     // Optional padding
     push_zeros(byte_count);
+}
+
+// See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+// We specified the .symtab section to have an entry_size of 0x18 bytes
+static void push_symtab_entry(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
+    push_number(name, 4);
+    push_number(value, 4);
+    push_number(size, 4);
+    push_number(info, 4);
+    push_number(other, 4);
+    push_number(shndx, 4);
+}
+
+static void push_symtab() {
+    // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+    push_symtab_entry(0, 0, 0, 0, 0, 0);
+    push_symtab_entry(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
+    push_symtab_entry(0, 0xfff10004, 0, 0, 0, 0);
+    push_symtab_entry(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
+    push_symtab_entry(16, 0x60010, 0x2000, 0, 0, 0); // "foo"
+}
+
+static void push_data() {
+    push_string("bar");
+    push_zeros(4);
 }
 
 static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -396,11 +416,11 @@ static void generate_so() {
     // TODO: REMOVE!
     push_zeros(0x1ee0);
 
-    // 0x2000 to 0x2004
+    // 0x2000 to 0x2008
     push_data();
 
-    // TODO: REMOVE!
-    push_zeros(0x70);
+    // 0x2008 to 0x2080
+    push_symtab();
 
     // 0x2080 to 0x2094
     push_strtab();

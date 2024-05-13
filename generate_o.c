@@ -132,7 +132,7 @@ static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 
     push_number(entry_size, 8);
 }
 
-static void push_section_header_table() {
+static void push_section_headers() {
     // Null section
     // 0x40 to 0x80
     push_zeros(0x40);
@@ -279,7 +279,7 @@ static void generate_o() {
     push_elf_header();
 
     // 0x40 to 0x180
-    push_section_header_table();
+    push_section_headers();
 
     // 0x180 to 0x190
     push_data();

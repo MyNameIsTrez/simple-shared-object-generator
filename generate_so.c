@@ -61,11 +61,11 @@ static void push_string(char *str) {
     push('\0');
 }
 
-static void push_symbol_entry_names() {
+static void push_strtab() {
     push(0);
     push_string("foo.s");
+    push_string("_DYNAMIC");
     push_string("foo");
-    push_zeros(5);
 }
 
 // TODO: I don't know the algorithm behind this
@@ -106,13 +106,18 @@ static void push_symbol_table() {
     push_zeros(0x10);
 }
 
-static void push_section_names() {
+static void push_shstrtab() {
     push(0);
-    push_string(".data");
-    push_string(".shstrtab");
     push_string(".symtab");
     push_string(".strtab");
-    push_zeros(15);
+    push_string(".shstrtab");
+    push_string(".hash");
+    push_string(".dynsym");
+    push_string(".dynstr");
+    push_string(".eh_frame");
+    push_string(".dynamic");
+    push_string(".data");
+    push_zeros(2);
 }
 
 static void push_data() {
@@ -287,16 +292,6 @@ static void push_section_headers() {
     );
 }
 
-static void push_sections() {
-    // push_number(2, 4);
-    // push_number(1, 4);
-    // push_number(1, 4);
-    // push_number(6, 4);
-
-    // TODO: REMOVE!
-    push_zeros(0x1FC0);
-}
-
 static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
     push_number(type, 4);
     push_number(flags, 4);
@@ -398,7 +393,14 @@ static void generate_so() {
     push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
-    push_sections();
+    // TODO: REMOVE!
+    push_zeros(0x1f60);
+
+    // 0x2080 to 0x2094
+    push_strtab();
+
+    // 0x2094 to 0x20e0
+    push_shstrtab();
 
     // 0x20e0 to end
     push_section_headers();
@@ -407,13 +409,7 @@ static void generate_so() {
     // push_data();
 
     // TODO: ? to TODO: ?
-    // push_section_names();
-
-    // TODO: ? to TODO: ?
     // push_symbol_table();
-
-    // TODO: ? to TODO: ?
-    // push_symbol_entry_names();
 
     fwrite(bytes, sizeof(u8), bytes_size, f);
 

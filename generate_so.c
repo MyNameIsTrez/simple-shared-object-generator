@@ -107,7 +107,7 @@ static void push_number(u64 n, size_t byte_count) {
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 // We specified the .symtab section to have an entry_size of 0x18 bytes
 // TODO: I am pretty sure the third "size" argument here is actually "offset", seeing the spots we're calling this?
-static void push_symtab_entry(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
+static void push_symbol(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
     push_number(name, 4);
     push_number(value, 4);
     push_number(size, 4);
@@ -118,11 +118,11 @@ static void push_symtab_entry(u32 name, u32 value, u32 size, u32 info, u32 other
 
 static void push_symtab() {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    push_symtab_entry(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symtab_entry(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
-    push_symtab_entry(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
-    push_symtab_entry(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
-    push_symtab_entry(16, 0x60010, 0x2000, 0, 0, 0); // "foo"
+    push_symbol(0, 0, 0, 0, 0, 0); // "<null>"
+    push_symbol(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
+    push_symbol(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
+    push_symbol(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
+    push_symbol(16, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
 
 static void push_data() {
@@ -150,8 +150,15 @@ static void push_dynamic() {
     push_dynamic_entry(DT_NULL, 0);
 }
 
+static void push_dynstr() {
+    push(0);
+    push_string("foo");
+}
+
 static void push_dynsym() {
-    push_zeros(0x30);
+    // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+    push_symbol(0, 0, 0, 0, 0, 0); // "<null>"
+    push_symbol(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
 
 static void push_hash() {
@@ -323,9 +330,12 @@ static void generate_so() {
     // 0x138 to 0x168
     push_dynsym();
 
+    // 0x168 to 0x16d
+    push_dynstr();
+
     // TODO: REMOVE!
-    // 0x168 to 0x1f50
-    push_zeros(0x1de8);
+    // 0x16d to 0x1f50
+    push_zeros(0x1de3);
 
     // 0x1f50 to 0x2000
     push_dynamic();

@@ -179,138 +179,41 @@ static void push_section_headers() {
 
     // .hash: Hash section
     // 0x2120 to 0x2160
-    push_section(
-        0x1b,
-        SHT_HASH,
-        SHF_ALLOC,
-        0x120,
-        0x120,
-        0x14,
-        2,
-        0,
-        8,
-        4
-    );
+    push_section(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, 0x14, 2, 0, 8, 4);
 
     // .dynsym: Dynamic linker symbol table section
     // 0x2160 to 0x21a0
-    push_section(
-        0x21,
-        SHT_DYNSYM,
-        SHF_ALLOC,
-        0x138,
-        0x138,
-        0x30,
-        3,
-        1,
-        8,
-        0x18
-    );
+    push_section(0x21, SHT_DYNSYM, SHF_ALLOC, 0x138, 0x138, 0x30, 3, 1, 8, 0x18);
 
     // .dynstr: String table section
     // 0x21a0 to 0x21e0
-    push_section(
-        0x29,
-        SHT_STRTAB,
-        SHF_ALLOC,
-        0x168,
-        0x168,
-        5,
-        0,
-        0,
-        1,
-        0
-    );
+    push_section(0x29, SHT_STRTAB, SHF_ALLOC, 0x168, 0x168, 5, 0, 0, 1, 0);
 
     // .eh_frame: Program data section
     // 0x21e0 to 0x2220
-    push_section(
-        0x31,
-        SHT_PROGBITS,
-        SHF_ALLOC,
-        0x1000,
-        0x1000,
-        0,
-        0,
-        0,
-        8,
-        0
-    );
+    push_section(0x31, SHT_PROGBITS, SHF_ALLOC, 0x1000, 0x1000, 0, 0, 0, 8, 0);
 
     // .dynamic: Dynamic linking information section
     // 0x2220 to 0x2260
-    push_section(
-        0x3b,
-        SHT_DYNAMIC,
-        SHF_WRITE | SHF_ALLOC,
-        0x1f50,
-        0x1f50,
-        0xb0,
-        3,
-        0,
-        8,
-        0x10
-    );
+    push_section(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, 0x1f50, 0x1f50, 0xb0, 3, 0, 8, 0x10);
 
     // .data: Data section
     // 0x2260 to 0x22a0
-    push_section(
-        0x44,
-        SHT_PROGBITS,
-        SHF_WRITE | SHF_ALLOC,
-        0x2000,
-        0x2000,
-        4,
-        0,
-        0,
-        4,
-        0
-    );
+    push_section(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, 0x2000, 0x2000, 4, 0, 0, 4, 0);
 
     // .symtab: Symbol table section
     // 0x22a0 to 0x22e0
-    push_section(
-        1,
-        SHT_SYMTAB,
-        0,
-        0,
-        0x2008,
-        0x78,
-        8, // Section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
-        4, // One greater than the symbol table index of the last local symbol (binding STB_LOCAL)
-        8,
-        0x18
-    );
+    // "link" of 8 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
+    // "info" of 4 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
+    push_section(1, SHT_SYMTAB, 0, 0, 0x2008, 0x78, 8, 4, 8, 0x18);
 
     // .strtab: String table section
     // 0x22e0 to 0x2320
-    push_section(
-        0x09,
-        SHT_PROGBITS | SHT_SYMTAB,
-        0,
-        0,
-        0x2080,
-        0x14,
-        0,
-        0,
-        1,
-        0
-    );
+    push_section(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2080, 0x14, 0, 0, 1, 0);
 
     // .shstrtab: Section header string table section
     // 0x2320 to end
-    push_section(
-        0x11,
-        SHT_PROGBITS | SHT_SYMTAB,
-        0,
-        0,
-        0x2094,
-        0x4a,
-        0,
-        0,
-        1,
-        0
-    );
+    push_section(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2094, 0x4a, 0, 0, 1, 0);
 }
 
 static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {

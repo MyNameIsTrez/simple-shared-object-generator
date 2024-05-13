@@ -6,11 +6,11 @@
 
 ### With generate_o.c + ld
 
-Generate the object `foo.o` with `gcc generate_o.c && ./a.out` (or with `nasm -f elf64 foo.s`), followed by `ld -shared --hash-style=gnu foo.o -o foo.so`.
+Generate the object `foo.o` with `gcc generate_o.c && ./a.out` (or with `nasm -f elf64 foo.s`), followed by `ld -shared --hash-style=sysv foo.o -o foo.so`.
 
 ### With generate_so.c
 
-Generate the shared library `foo.so` with `gcc generate_so.c && ./a.out` (or with `nasm -f elf64 foo.s` followed by `ld -shared --hash-style=gnu foo.o -o foo.so`).
+Generate the shared library `foo.so` with `gcc generate_so.c && ./a.out` (or with `nasm -f elf64 foo.s` followed by `ld -shared --hash-style=sysv foo.o -o foo.so`).
 
 ## Running foo.so
 

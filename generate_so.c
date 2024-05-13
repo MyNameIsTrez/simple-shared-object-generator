@@ -266,7 +266,7 @@ static void push_elf_header() {
     push_zeros(7);
 
     // Section header table offset
-    push(0xe8);
+    push(0xe0);
     push(0x20);
     push_zeros(6);
 

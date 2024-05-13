@@ -161,9 +161,15 @@ static void push_dynsym() {
     push_symbol(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
 
+// See https://flapenguin.me/elf-dt-hash
+// See https://refspecs.linuxfoundation.org/elf/gabi4+/ch5.dynamic.html#hash
 static void push_hash() {
-    push_zeros(0x14);
-    push_zeros(4);
+    push_number(1, 4); // nbucket
+    push_number(2, 4); // nchain, which is 2 because there is "<null>" and "foo" in dynsym
+    push_number(1, 4); // bucket[0] => 1, so dynsym[1] => "foo"
+    push_number(0, 4); // chain[0] is always 0
+    push_number(0, 4); // chain[1] is 0, since if the symbol didn't match "foo", there is no possible other match
+    push_zeros(4); // Alignment
 }
 
 static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -335,7 +341,8 @@ static void generate_so() {
 
     // TODO: REMOVE!
     // 0x16d to 0x1f50
-    push_zeros(0x1de3);
+    push_zeros(3); // 8 byte alignment
+    push_zeros(0x1de0);
 
     // 0x1f50 to 0x2000
     push_dynamic();

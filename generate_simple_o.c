@@ -226,7 +226,7 @@ static void push_elf_header() {
     push(0);
 }
 
-static void generate_o() {
+static void generate_simple_o() {
     FILE *f = fopen("foo.o", "w");
     if (!f) {
         perror("fopen");
@@ -257,5 +257,5 @@ static void generate_o() {
 }
 
 int main() {
-    generate_o();
+    generate_simple_o();
 }

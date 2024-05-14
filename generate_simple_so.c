@@ -50,7 +50,7 @@ size_t bytes_size = 0;
 
 static void push(u8 byte) {
     if (bytes_size + 1 > MAX_BYTES_SIZE) {
-        fprintf(stderr, "MAX_BYTES_SIZE of %d was exceeded\n", MAX_BYTES_SIZE);
+        fprintf(stderr, "error: MAX_BYTES_SIZE of %d was exceeded\n", MAX_BYTES_SIZE);
         exit(EXIT_FAILURE);
     }
 
@@ -314,7 +314,7 @@ static void push_elf_header() {
     push(0);
 }
 
-static void generate_so() {
+static void generate_simple_so() {
     FILE *f = fopen("foo.so", "w");
     if (!f) {
         perror("fopen");
@@ -341,7 +341,7 @@ static void generate_so() {
 
     // TODO: REMOVE!
     // 0x16d to 0x1f50
-    push_zeros(3); // 8 byte alignment
+    push_zeros(3); // Alignment
     push_zeros(0x1de0);
 
     // 0x1f50 to 0x2000
@@ -368,5 +368,5 @@ static void generate_so() {
 }
 
 int main() {
-    generate_so();
+    generate_simple_so();
 }

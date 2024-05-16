@@ -161,10 +161,39 @@ static void push_dynsym() {
     push_symbol(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
 
+static uint32_t get_nbucket(size_t symbol_count) {
+    // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
+    //
+    // Array used to determine the number of hash table buckets to use
+    // based on the number of symbols there are. If there are fewer than
+    // 3 symbols we use 1 bucket, fewer than 17 symbols we use 3 buckets,
+    // fewer than 37 we use 17 buckets, and so forth. We never use more
+    // than 32771 buckets.
+    static const size_t nbucket_options[] = {
+        1, 3, 17, 37, 67, 97, 131, 197, 263, 521, 1031, 2053, 4099, 8209, 16411, 32771, 0
+    };
+
+    uint32_t nbucket = 0;
+
+    for (size_t i = 0; nbucket_options[i] != 0; i++) {
+        nbucket = nbucket_options[i];
+
+        if (symbol_count < nbucket_options[i + 1]) {
+            break;
+        }
+    }
+
+    return nbucket;
+}
+
 // See https://flapenguin.me/elf-dt-hash
 // See https://refspecs.linuxfoundation.org/elf/gabi4+/ch5.dynamic.html#hash
-static void push_hash() {
-    push_number(1, 4); // nbucket
+static void push_hash(char *symbols[]) {
+    size_t symbol_count = 3; // TODO: Turn this into symbols_size, tracking the length of the global symbols array
+
+    uint32_t nbucket = get_nbucket(symbol_count);
+
+    push_number(nbucket, 4);
     push_number(2, 4); // nchain, which is 2 because there is "<null>" and "foo" in dynsym
     push_number(1, 4); // bucket[0] => 1, so dynsym[1] => "foo"
     push_number(0, 4); // chain[0] is always 0
@@ -349,8 +378,14 @@ static void generate_simple_so() {
     push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
+    char *symbols[] = {
+        "a",
+        "b",
+        "c",
+    };
+
     // 0x120 to 0x134
-    push_hash();
+    push_hash(symbols);
 
     // 0x138 to 0x168
     push_dynsym();

@@ -1,134 +1,134 @@
 global a
 global b
 global c
-global d
-global e
-global f
-global g
-global h
-global i
-global j
-global k
-global l
-global m
-global n
-global o
-global p
-global q
-global r
-global s
-global t
-global u
-global v
-global w
-global x
-global y
-global z
-global a_
-global b_
-global c_
-global d_
-global e_
-global f_
-global g_
-global h_
-global i_
-global j_
-global k_
-global l_
-global m_
-global n_
-global o_
-global p_
-global q_
-global r_
-global s_
-global t_
-global u_
-global v_
-global w_
-global x_
-global y_
-global z_
-global a__
-global b__
-global c__
-global d__
-global e__
-global f__
-global g__
-global h__
-global i__
-global j__
-global k__
-global l__
-global m__
-global n__
-global o__
-global p__
-global q__
-global r__
-global s__
-global t__
-global u__
-global v__
-global w__
-global x__
-global y__
-global z__
-global a___
-global b___
-global c___
-global d___
-global e___
-global f___
-global g___
-global h___
-global i___
-global j___
-global k___
-global l___
-global m___
-global n___
-global o___
-global p___
-global q___
-global r___
-global s___
-global t___
-global u___
-global v___
-global w___
-global x___
-global y___
-global z___
-global a____
-global b____
-global c____
-global d____
-global e____
-global f____
-global g____
-global h____
-global i____
-global j____
-global k____
-global l____
-global m____
-global n____
-global o____
-global p____
-global q____
-global r____
-global s____
-global t____
-global u____
-global v____
-global w____
-global x____
-global y____
-global z____
-global a_____
+; global d
+; global e
+; global f
+; global g
+; global h
+; global i
+; global j
+; global k
+; global l
+; global m
+; global n
+; global o
+; global p
+; global q
+; global r
+; global s
+; global t
+; global u
+; global v
+; global w
+; global x
+; global y
+; global z
+; global a_
+; global b_
+; global c_
+; global d_
+; global e_
+; global f_
+; global g_
+; global h_
+; global i_
+; global j_
+; global k_
+; global l_
+; global m_
+; global n_
+; global o_
+; global p_
+; global q_
+; global r_
+; global s_
+; global t_
+; global u_
+; global v_
+; global w_
+; global x_
+; global y_
+; global z_
+; global a__
+; global b__
+; global c__
+; global d__
+; global e__
+; global f__
+; global g__
+; global h__
+; global i__
+; global j__
+; global k__
+; global l__
+; global m__
+; global n__
+; global o__
+; global p__
+; global q__
+; global r__
+; global s__
+; global t__
+; global u__
+; global v__
+; global w__
+; global x__
+; global y__
+; global z__
+; global a___
+; global b___
+; global c___
+; global d___
+; global e___
+; global f___
+; global g___
+; global h___
+; global i___
+; global j___
+; global k___
+; global l___
+; global m___
+; global n___
+; global o___
+; global p___
+; global q___
+; global r___
+; global s___
+; global t___
+; global u___
+; global v___
+; global w___
+; global x___
+; global y___
+; global z___
+; global a____
+; global b____
+; global c____
+; global d____
+; global e____
+; global f____
+; global g____
+; global h____
+; global i____
+; global j____
+; global k____
+; global l____
+; global m____
+; global n____
+; global o____
+; global p____
+; global q____
+; global r____
+; global s____
+; global t____
+; global u____
+; global v____
+; global w____
+; global x____
+; global y____
+; global z____
+; global a_____
 ; global b_____
 ; global c_____
 ; global d_____

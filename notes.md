@@ -1,3 +1,14 @@
-gcc generate_simple_so.c && ./a.out && xxd foo.so > mine.hex
+gcc generate_complex_so.c && ./a.out && xxd foo.so > mine.hex
+
+nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && xxd foo.so > goal.hex
 
 nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && readelf -a foo.so
+
+| line | nbucket | symbol name |
+| 1    | 1       | a           |
+| 3    | 3       | c           |
+| 17   | 11      | q           |
+| 37   | 25      | k_          |
+| 67   | 43      | o__         |
+| 97   | 61      | s___        |
+| 131  | 83      | a_____      |

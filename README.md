@@ -12,6 +12,12 @@ Generate the object `foo.o` with `gcc generate_simple_o.c && ./a.out` (or with `
 
 Generate the shared library `foo.so` with `gcc generate_simple_so.c && ./a.out` (or with `nasm -f elf64 foo.s` followed by `ld -shared --hash-style=sysv foo.o -o foo.so`).
 
+### With generate_complex_so.c
+
+`generate_complex_so.c` is based on `generate_simple_so.c`, but isn't as incredibly hardcoded, since it can handle multiple labels.
+
+Generate the shared library `foo.so` with `gcc generate_complex_so.c && ./a.out`.
+
 ## Running foo.so
 
 Compile and run main.c with `gcc run_so.c && ./a.out`, which loads `foo.so` dynamically and prints the `bar` text from it.

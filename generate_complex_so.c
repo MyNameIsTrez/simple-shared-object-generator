@@ -192,12 +192,16 @@ static void push_hash(char *symbols[]) {
     size_t symbol_count = 3; // TODO: Turn this into symbols_size, tracking the length of the global symbols array
 
     uint32_t nbucket = get_nbucket(symbol_count);
+    uint32_t nchain = 1 + symbol_count; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
 
     push_number(nbucket, 4);
-    push_number(2, 4); // nchain, which is 2 because there is "<null>" and "foo" in dynsym
+    push_number(nchain, 4);
+
     push_number(1, 4); // bucket[0] => 1, so dynsym[1] => "foo"
+
     push_number(0, 4); // chain[0] is always 0
     push_number(0, 4); // chain[1] is 0, since if the symbol didn't match "foo", there is no possible other match
+
     push_zeros(4); // Alignment
 }
 

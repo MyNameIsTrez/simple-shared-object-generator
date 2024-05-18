@@ -4,8 +4,9 @@
 #include <string.h>
 
 #define MAX_BYTES 420420
-#define MAX_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
 #define MAX_SYMBOLS 420420
+
+#define MAX_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
 
 enum d_type {
     DT_NULL = 0, // Marks the end of the _DYNAMIC array
@@ -454,6 +455,55 @@ static void reset() {
     chains_size = 0;
 }
 
+// This is solely here to put the symbols in the same weird order as ld does
+// From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/hash.c#l508
+static inline unsigned long bfd_hash_hash(const char *string, unsigned int *lenp) {
+    const unsigned char *s;
+    unsigned long hash;
+    unsigned int len;
+    unsigned int c;
+
+    hash = 0;
+    len = 0;
+    s = (const unsigned char *) string;
+    while ((c = *s++) != '\0') {
+        hash += c + (c << 17);
+        hash ^= hash >> 2;
+    }
+    len = (s - (const unsigned char *) string) - 1;
+    hash += len + (len << 17);
+    hash ^= hash >> 2;
+    if (lenp != NULL) {
+        *lenp = len;
+    }
+    return hash;
+}
+
+// name | index
+// "a"  | 3485
+// "b"  |  245
+// "c"  | 2224
+// "d"  | 2763
+// "e"  | 3574
+// "f"  |  553
+// "g"  |  872
+// "h"  | 3042
+// "i"  | 1868
+// "j"  |  340
+// "k"  | 1151
+// "l"  | 1146
+// "m"  | 3669
+// "n"  |  429
+// "o"  |  967
+// "p"  |  256
+//
+// See https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/hash.c#l618
+static char **get_shuffled_symbols() {
+    #define DEFAULT_SIZE 4051 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/hash.c#l345
+
+
+}
+
 static void generate_simple_so() {
     reset();
 
@@ -472,27 +522,52 @@ static void generate_simple_so() {
     push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
+    size_t symbol_count = 16; 
+
     char *symbols[] = {
+        "a",
         "b",
-        "p",
-        "j",
-        "n",
-        "f",
-        "g",
-        "o",
-        "l",
-        "k",
-        "i",
         "c",
         "d",
-        "h",
-        "a",
         "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
         "m",
+        "n",
+        "o",
+        "p",
     };
 
+    // TODO: Stop hardcoding this size of 16!
+    char *shuffled_symbols[16];
+    //     "b",
+    //     "p",
+    //     "j",
+    //     "n",
+    //     "f",
+    //     "g",
+    //     "o",
+    //     "l",
+    //     "k",
+    //     "i",
+    //     "c",
+    //     "d",
+    //     "h",
+    //     "a",
+    //     "e",
+    //     "m",
+
+    for (size_t i = 0; i < symbol_count; i++) {
+        u32 hash = bfd_hash_hash(symbols[i], );
+    }
+
     // 0x120 to 0x134
-    push_hash(symbols);
+    push_hash(shuffled_symbols);
 
     // 0x138 to 0x168
     push_dynsym();

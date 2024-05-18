@@ -203,20 +203,67 @@ static unsigned long elf_hash(const char *namearg) {
 
 // See https://flapenguin.me/elf-dt-hash
 // See https://refspecs.linuxfoundation.org/elf/gabi4+/ch5.dynamic.html#hash
+//
+// Example with 16 symbols "abcdefghijklmnop":
+// 
+// nbuckets: 3 (what get_nbucket() returns when there are 16 symbols)
+// nchain: 17 (16 symbols + the SHT_UNDEF at index 0)
+// 
+// Bucket[i] always has the value of the last entry that has `hash % nbucket` equal to `i`
+// 
+//  i  bucket[i]  name of first symbol in chain
+// --  ---------  -----------------------------
+//  0  11         c
+//  1  16         m
+//  2  15         e
+// 
+// Two asterisks ** and parens () indicate the start of a chain, so it's easier to see.
+// 
+//        SYMBOL TABLE   |
+//                       |
+// 	   name =            | hash =          bucket_index =
+//  i  symtab[i].st_name | elf_hash(name)  hash % nbucket
+// --  ----------------- | --------------  --------------  
+//  0  <STN_UNDEF>       |
+//  1  b                 |  98             2                 /---> 0
+//  2  p                 | 112             1                 | /-> 0
+//  3  j                 | 106             1                 | \-- 2 <---\
+//  4  n                 | 110             2                 \---- 1 <---|-\
+//  5  f                 | 102             0                       0 <-\ | |
+//  6  g                 | 103             1                 /---> 3 --|-/ |
+//  7  o                 | 111             0                 | /-> 5 --/   |
+//  8  l                 | 108             0                 | \-- 7 <-\   |
+//  9  k                 | 107             2               /-|---> 4 --|---/
+// 10  i                 | 105             0               | | /-> 8 --/
+// 11  c                 |  99             0 **            | | \-(10)
+// 12  d                 | 100             1               | \---- 6 <-\
+// 13  h                 | 104             2               \------ 9 <-|-\
+// 14  a                 |  97             1                  /-> 12 --/ |
+// 15  e                 | 101             2 **               |  (13)----/
+// 16  m                 | 109             1 **               \--(14)
 static void push_hash(char *symbols[]) {
-    size_t symbol_count = 3; // TODO: Turn this into symbols_size, tracking the length of the global symbols array
+    size_t symbol_count = 16; // TODO: Turn this into symbols_size, tracking the length of the global symbols array
 
     uint32_t nbucket = get_nbucket(symbol_count);
+    push_number(nbucket, 4);
+
     uint32_t nchain = 1 + symbol_count; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
+    push_number(nchain, 4);
+
+    static uint32_t chains[MAX_SYMBOLS];
+    static uint32_t last[MAX_NBUCKETS];
+
+    // memset(chains, 0, nchain * sizeof(uint32_t));
+    // memset(previous, 0, nchain * sizeof(uint32_t));
+
+    for (size_t i = 0; i < symbol_count; i++) {
+        uint32_t hash = elf_hash(symbols[i]);
+        uint32_t bucket_index = hash % nbucket;
+        last[bucket_index] = i + 1;
+    }
 
     // static uint32_t buckets[MAX_NBUCKETS];
-    // static uint32_t chains[MAX_SYMBOLS];
-
     // memset(buckets, 0, nbucket * sizeof(uint32_t));
-    // memset(chains, 0, nchain * sizeof(uint32_t));
-
-    push_number(nbucket, 4);
-    push_number(nchain, 4);
 
     push_number(1, 4); // bucket[0] => 1, so dynsym[1] => "foo"
 
@@ -404,9 +451,22 @@ static void generate_simple_so() {
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
     char *symbols[] = {
-        "a",
         "b",
+        "p",
+        "j",
+        "n",
+        "f",
+        "g",
+        "o",
+        "l",
+        "k",
+        "i",
         "c",
+        "d",
+        "h",
+        "a",
+        "e",
+        "m",
     };
 
     // 0x120 to 0x134

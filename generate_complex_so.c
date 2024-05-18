@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_NBUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
+#define MAX_SYMBOLS 420420
+
 enum d_type {
     DT_NULL = 0, // Marks the end of the _DYNAMIC array
     DT_HASH = 4, // The address of the symbol hash table. This table refers to the symbol table indicated by the DT_SYMTAB element
@@ -168,9 +171,9 @@ static uint32_t get_nbucket(size_t symbol_count) {
     // based on the number of symbols there are. If there are fewer than
     // 3 symbols we use 1 bucket, fewer than 17 symbols we use 3 buckets,
     // fewer than 37 we use 17 buckets, and so forth. We never use more
-    // than 32771 buckets.
-    static const size_t nbucket_options[] = {
-        1, 3, 17, 37, 67, 97, 131, 197, 263, 521, 1031, 2053, 4099, 8209, 16411, 32771, 0
+    // than MAX_NBUCKETS (32771) buckets.
+    static const uint32_t nbucket_options[] = {
+        1, 3, 17, 37, 67, 97, 131, 197, 263, 521, 1031, 2053, 4099, 8209, 16411, MAX_NBUCKETS, 0
     };
 
     uint32_t nbucket = 0;
@@ -186,6 +189,18 @@ static uint32_t get_nbucket(size_t symbol_count) {
     return nbucket;
 }
 
+// From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elf.c#l193
+static unsigned long elf_hash(const char *namearg) {
+    uint32_t h = 0;
+
+    for (const unsigned char *name = (const unsigned char *) namearg; *name; name++) {
+        h = (h << 4) + *name;
+        h ^= (h >> 24) & 0xf0;
+    }
+
+    return h & 0x0fffffff;
+}
+
 // See https://flapenguin.me/elf-dt-hash
 // See https://refspecs.linuxfoundation.org/elf/gabi4+/ch5.dynamic.html#hash
 static void push_hash(char *symbols[]) {
@@ -193,6 +208,12 @@ static void push_hash(char *symbols[]) {
 
     uint32_t nbucket = get_nbucket(symbol_count);
     uint32_t nchain = 1 + symbol_count; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
+
+    // static uint32_t buckets[MAX_NBUCKETS];
+    // static uint32_t chains[MAX_SYMBOLS];
+
+    // memset(buckets, 0, nbucket * sizeof(uint32_t));
+    // memset(chains, 0, nchain * sizeof(uint32_t));
 
     push_number(nbucket, 4);
     push_number(nchain, 4);

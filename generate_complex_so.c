@@ -51,7 +51,7 @@ typedef uint64_t u64;
 u8 bytes[MAX_BYTES_SIZE];
 size_t bytes_size = 0;
 
-static void push(u8 byte) {
+static void push_byte(u8 byte) {
     if (bytes_size + 1 > MAX_BYTES_SIZE) {
         fprintf(stderr, "error: MAX_BYTES_SIZE of %d was exceeded\n", MAX_BYTES_SIZE);
         exit(EXIT_FAILURE);
@@ -62,19 +62,19 @@ static void push(u8 byte) {
 
 static void push_zeros(size_t count) {
     for (size_t i = 0; i < count; i++) {
-        push(0);
+        push_byte(0);
     }
 }
 
 static void push_string(char *str) {
     for (size_t i = 0; i < strlen(str); i++) {
-        push(str[i]);
+        push_byte(str[i]);
     }
-    push('\0');
+    push_byte('\0');
 }
 
 static void push_shstrtab() {
-    push(0);
+    push_byte(0);
     push_string(".symtab");
     push_string(".strtab");
     push_string(".shstrtab");
@@ -88,7 +88,7 @@ static void push_shstrtab() {
 }
 
 static void push_strtab() {
-    push(0);
+    push_byte(0);
     push_string("foo.s");
     push_string("_DYNAMIC");
     push_string("foo");
@@ -97,7 +97,7 @@ static void push_strtab() {
 static void push_number(u64 n, size_t byte_count) {
     while (n > 0) {
         // Little-endian requires the least significant byte first
-        push(n & 0xff);
+        push_byte(n & 0xff);
         byte_count--;
 
         n >>= 8; // Shift right by one byte
@@ -154,7 +154,7 @@ static void push_dynamic() {
 }
 
 static void push_dynstr() {
-    push(0);
+    push_byte(0);
     push_string("foo");
 }
 
@@ -344,26 +344,26 @@ static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_add
 static void push_elf_header() {
     // Magic number
     // 0x0 to 0x4
-    push(0x7f);
-    push('E');
-    push('L');
-    push('F');
+    push_byte(0x7f);
+    push_byte('E');
+    push_byte('L');
+    push_byte('F');
 
     // 64-bit
     // 0x4 to 0x5
-    push(2);
+    push_byte(2);
 
     // Little-endian
     // 0x5 to 0x6
-    push(1);
+    push_byte(1);
 
     // Version
     // 0x6 to 0x7
-    push(1);
+    push_byte(1);
 
     // SysV OS ABI
     // 0x7 to 0x8
-    push(0);
+    push_byte(0);
 
     // Padding
     // 0x8 to 0x10
@@ -371,17 +371,17 @@ static void push_elf_header() {
 
     // Shared object
     // 0x10 to 0x12
-    push(ET_DYN);
-    push(0);
+    push_byte(ET_DYN);
+    push_byte(0);
 
     // x86-64 instruction set architecture
     // 0x12 to 0x14
-    push(0x3E);
-    push(0);
+    push_byte(0x3E);
+    push_byte(0);
 
     // Original version of ELF
     // 0x14 to 0x18
-    push(1);
+    push_byte(1);
     push_zeros(3);
 
     // No execution entry point address
@@ -390,13 +390,13 @@ static void push_elf_header() {
 
     // Program header table offset
     // 0x20 to 0x28
-    push(0x40);
+    push_byte(0x40);
     push_zeros(7);
 
     // Section header table offset
     // 0x28 to 0x30
-    push(0xe0);
-    push(0x20);
+    push_byte(0xe0);
+    push_byte(0x20);
     push_zeros(6);
 
     // Processor-specific flags
@@ -405,33 +405,33 @@ static void push_elf_header() {
 
     // ELF header size
     // 0x34 to 0x36
-    push(0x40);
-    push(0);
+    push_byte(0x40);
+    push_byte(0);
 
     // Single program header size
     // 0x36 to 0x38
-    push(0x38);
-    push(0);
+    push_byte(0x38);
+    push_byte(0);
 
     // Number of program header entries
     // 0x38 to 0x3a
-    push(4);
-    push(0);
+    push_byte(4);
+    push_byte(0);
 
     // Single section header entry size
     // 0x3a to 0x3c
-    push(0x40);
-    push(0);
+    push_byte(0x40);
+    push_byte(0);
 
     // Number of section header entries
     // 0x3c to 0x3e
-    push(10);
-    push(0);
+    push_byte(10);
+    push_byte(0);
 
     // Index of entry with section names
     // 0x3e to 0x40
-    push(9);
-    push(0);
+    push_byte(9);
+    push_byte(0);
 }
 
 static void generate_simple_so() {

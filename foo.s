@@ -1,19 +1,19 @@
 global a
 global b
 global c
-; global d
-; global e
-; global f
-; global g
-; global h
-; global i
-; global j
-; global k
-; global l
-; global m
-; global n
-; global o
-; global p
+global d
+global e
+global f
+global g
+global h
+global i
+global j
+global k
+global l
+global m
+global n
+global o
+global p
 ; global q
 ; global r
 ; global s
@@ -160,19 +160,19 @@ section .data
 a: db "a", 0
 b: db "b", 0
 c: db "c", 0
-; d: db "d", 0
-; e: db "e", 0
-; f: db "f", 0
-; g: db "g", 0
-; h: db "h", 0
-; i: db "i", 0
-; j: db "j", 0
-; k: db "k", 0
-; l: db "l", 0
-; m: db "m", 0
-; n: db "n", 0
-; o: db "o", 0
-; p: db "p", 0
+d: db "d", 0
+e: db "e", 0
+f: db "f", 0
+g: db "g", 0
+h: db "h", 0
+i: db "i", 0
+j: db "j", 0
+k: db "k", 0
+l: db "l", 0
+m: db "m", 0
+n: db "n", 0
+o: db "o", 0
+p: db "p", 0
 ; q: db "q", 0
 ; r: db "r", 0
 ; s: db "s", 0

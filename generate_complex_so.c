@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_NBUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
+#define MAX_BYTES 420420
+#define MAX_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
 #define MAX_SYMBOLS 420420
 
 enum d_type {
@@ -47,13 +48,15 @@ typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-#define MAX_BYTES_SIZE 420420
-u8 bytes[MAX_BYTES_SIZE];
-size_t bytes_size = 0;
+static u8 bytes[MAX_BYTES];
+static size_t bytes_size;
+
+static u32 chains[MAX_SYMBOLS];
+static size_t chains_size;
 
 static void push_byte(u8 byte) {
-    if (bytes_size + 1 > MAX_BYTES_SIZE) {
-        fprintf(stderr, "error: MAX_BYTES_SIZE of %d was exceeded\n", MAX_BYTES_SIZE);
+    if (bytes_size + 1 > MAX_BYTES) {
+        fprintf(stderr, "error: MAX_BYTES of %d was exceeded\n", MAX_BYTES);
         exit(EXIT_FAILURE);
     }
 
@@ -164,19 +167,19 @@ static void push_dynsym() {
     push_symbol(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
 
-static uint32_t get_nbucket(size_t symbol_count) {
+static u32 get_nbucket(size_t symbol_count) {
     // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
     //
     // Array used to determine the number of hash table buckets to use
     // based on the number of symbols there are. If there are fewer than
     // 3 symbols we use 1 bucket, fewer than 17 symbols we use 3 buckets,
     // fewer than 37 we use 17 buckets, and so forth. We never use more
-    // than MAX_NBUCKETS (32771) buckets.
-    static const uint32_t nbucket_options[] = {
-        1, 3, 17, 37, 67, 97, 131, 197, 263, 521, 1031, 2053, 4099, 8209, 16411, MAX_NBUCKETS, 0
+    // than MAX_BUCKETS (32771) buckets.
+    static const u32 nbucket_options[] = {
+        1, 3, 17, 37, 67, 97, 131, 197, 263, 521, 1031, 2053, 4099, 8209, 16411, MAX_BUCKETS, 0
     };
 
-    uint32_t nbucket = 0;
+    u32 nbucket = 0;
 
     for (size_t i = 0; nbucket_options[i] != 0; i++) {
         nbucket = nbucket_options[i];
@@ -190,8 +193,8 @@ static uint32_t get_nbucket(size_t symbol_count) {
 }
 
 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elf.c#l193
-static unsigned long elf_hash(const char *namearg) {
-    uint32_t h = 0;
+static u32 elf_hash(const char *namearg) {
+    u32 h = 0;
 
     for (const unsigned char *name = (const unsigned char *) namearg; *name; name++) {
         h = (h << 4) + *name;
@@ -199,6 +202,15 @@ static unsigned long elf_hash(const char *namearg) {
     }
 
     return h & 0x0fffffff;
+}
+
+static void push_chain(u32 chain) {
+    if (chains_size + 1 > MAX_SYMBOLS) {
+        fprintf(stderr, "error: MAX_SYMBOLS of %d was exceeded\n", MAX_SYMBOLS);
+        exit(EXIT_FAILURE);
+    }
+
+    chains[chains_size++] = chain;
 }
 
 // See https://flapenguin.me/elf-dt-hash
@@ -244,33 +256,36 @@ static unsigned long elf_hash(const char *namearg) {
 static void push_hash(char *symbols[]) {
     size_t symbol_count = 16; // TODO: Turn this into symbols_size, tracking the length of the global symbols array
 
-    uint32_t nbucket = get_nbucket(symbol_count);
+    u32 nbucket = get_nbucket(symbol_count);
     push_number(nbucket, 4);
 
-    uint32_t nchain = 1 + symbol_count; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
+    u32 nchain = 1 + symbol_count; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
     push_number(nchain, 4);
 
-    static uint32_t chains[MAX_SYMBOLS];
-    static uint32_t last[MAX_NBUCKETS];
+    static u32 buckets[MAX_BUCKETS];
 
-    // memset(chains, 0, nchain * sizeof(uint32_t));
-    // memset(previous, 0, nchain * sizeof(uint32_t));
+    memset(buckets, 0, nbucket * sizeof(u32));
 
     for (size_t i = 0; i < symbol_count; i++) {
-        uint32_t hash = elf_hash(symbols[i]);
-        uint32_t bucket_index = hash % nbucket;
-        last[bucket_index] = i + 1;
+        u32 hash = elf_hash(symbols[i]);
+        u32 bucket_index = hash % nbucket;
+
+        push_chain(buckets[bucket_index]);
+
+        buckets[bucket_index] = i + 1;
     }
 
-    // static uint32_t buckets[MAX_NBUCKETS];
-    // memset(buckets, 0, nbucket * sizeof(uint32_t));
+    for (size_t i = 0; i < nbucket; i++) {
+        push_number(buckets[i], 4);
+    }
 
-    push_number(1, 4); // bucket[0] => 1, so dynsym[1] => "foo"
+    push_number(0, 4); // The first entry in the chain is always STN_UNDEF
 
-    push_number(0, 4); // chain[0] is always 0
-    push_number(0, 4); // chain[1] is 0, since if the symbol didn't match "foo", there is no possible other match
+    for (size_t i = 0; i < chains_size; i++) {
+        push_number(chains[i], 4);
+    }
 
-    push_zeros(4); // Alignment
+    // push_zeros(4); // Alignment
 }
 
 static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -434,7 +449,14 @@ static void push_elf_header() {
     push_byte(0);
 }
 
+static void reset() {
+    bytes_size = 0;
+    chains_size = 0;
+}
+
 static void generate_simple_so() {
+    reset();
+
     FILE *f = fopen("foo.so", "w");
     if (!f) {
         perror("fopen");

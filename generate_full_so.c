@@ -7,7 +7,7 @@
 #define MAX_BYTES 420420
 #define MAX_SYMBOLS 420420
 
-#define MAX_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
+#define MAX_HASH_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
 
 enum d_type {
     DT_NULL = 0, // Marks the end of the _DYNAMIC array
@@ -50,16 +50,23 @@ typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+struct hash_table {
+    u32 nbucket;
+    u32 nchain;
+    u32 buckets[MAX_HASH_BUCKETS];
+    u32 chains[MAX_SYMBOLS];
+    size_t chains_size;
+};
+static struct hash_table hash_table;
+
 static char *symbols[MAX_SYMBOLS];
 static size_t symbols_size;
 
+static u32 shuffled_chains[MAX_SYMBOLS];
+static size_t shuffled_chains_size;
+
 static char *shuffled_symbols[MAX_SYMBOLS];
 static size_t shuffled_symbols_size;
-
-static u32 buckets[MAX_BUCKETS];
-
-static u32 chains[MAX_SYMBOLS];
-static size_t chains_size;
 
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
@@ -188,9 +195,9 @@ static u32 get_nbucket(void) {
     // based on the number of symbols there are. If there are fewer than
     // 3 symbols we use 1 bucket, fewer than 17 symbols we use 3 buckets,
     // fewer than 37 we use 17 buckets, and so forth. We never use more
-    // than MAX_BUCKETS (32771) buckets.
+    // than MAX_HASH_BUCKETS (32771) buckets.
     static const u32 nbucket_options[] = {
-        1, 3, 17, 37, 67, 97, 131, 197, 263, 521, 1031, 2053, 4099, 8209, 16411, MAX_BUCKETS, 0
+        1, 3, 17, 37, 67, 97, 131, 197, 263, 521, 1031, 2053, 4099, 8209, 16411, MAX_HASH_BUCKETS, 0
     };
 
     u32 nbucket = 0;
@@ -218,13 +225,13 @@ static u32 elf_hash(const char *namearg) {
     return h & 0x0fffffff;
 }
 
-static void push_chain(u32 chain) {
-    if (chains_size + 1 > MAX_SYMBOLS) {
+static void push_hash_chain(u32 chain) {
+    if (hash_table.chains_size + 1 > MAX_SYMBOLS) {
         fprintf(stderr, "error: MAX_SYMBOLS of %d was exceeded\n", MAX_SYMBOLS);
         exit(EXIT_FAILURE);
     }
 
-    chains[chains_size++] = chain;
+    hash_table.chains[hash_table.chains_size++] = chain;
 }
 
 // See https://flapenguin.me/elf-dt-hash
@@ -268,36 +275,24 @@ static void push_chain(u32 chain) {
 // 15  e                 | 101             2 **               |  (13)----/
 // 16  m                 | 109             1 **               \--(14)
 static void push_hash(void) {
-    u32 nbucket = get_nbucket();
-    push_number(nbucket, 4);
+    hash_table.nbucket = get_nbucket();
 
-    u32 nchain = 1 + symbols_size; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
-    push_number(nchain, 4);
+    hash_table.nchain = 1 + symbols_size; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
 
-    memset(buckets, 0, nbucket * sizeof(u32));
+    memset(hash_table.buckets, 0, hash_table.nbucket * sizeof(u32));
 
-    chains_size = 0;
+    hash_table.chains_size = 0;
 
-    push_chain(0); // The first entry in the chain is always STN_UNDEF
+    push_hash_chain(0); // The first entry in the chain is always STN_UNDEF
 
     for (size_t i = 0; i < symbols_size; i++) {
         u32 hash = elf_hash(shuffled_symbols[i]);
-        u32 bucket_index = hash % nbucket;
+        u32 bucket_index = hash % hash_table.nbucket;
 
-        push_chain(buckets[bucket_index]);
+        push_hash_chain(hash_table.buckets[bucket_index]);
 
-        buckets[bucket_index] = i + 1;
+        hash_table.buckets[bucket_index] = i + 1;
     }
-
-    for (size_t i = 0; i < nbucket; i++) {
-        push_number(buckets[i], 4);
-    }
-
-    for (size_t i = 0; i < chains_size; i++) {
-        push_number(chains[i], 4);
-    }
-
-    // push_zeros(4); // Alignment
 }
 
 static void push_section_header(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -357,8 +352,21 @@ static void write_section_headers(void) {
     push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2094, 0x4a, 0, 0, 1, 0);
 }
 
-static void write_sections(void) {
+static void write_hash(void) {
+    push_number(hash_table.nbucket, 4);
+    push_number(hash_table.nchain, 4);
 
+    for (size_t i = 0; i < hash_table.nbucket; i++) {
+        push_number(hash_table.buckets[i], 4);
+    }
+
+    for (size_t i = 0; i < hash_table.chains_size; i++) {
+        push_number(hash_table.chains[i], 4);
+    }
+}
+
+static void write_sections(void) {
+    write_hash();
 }
 
 static void write_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
@@ -514,23 +522,10 @@ static void create_sections() {
 }
 
 static void reset(void) {
-    chains_size = 0;
+    symbols_size = 0;
+    shuffled_chains_size = 0;
+    shuffled_symbols_size = 0;
     bytes_size = 0;
-}
-
-static void generate_simple_so(void) {
-    reset();
-
-    create_sections();
-    write_bytes();
-
-    FILE *f = fopen("foo.so", "w");
-    if (!f) {
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
-    fwrite(bytes, sizeof(u8), bytes_size, f);
-    fclose(f);
 }
 
 static void push_shuffled_symbol(char *shuffled_symbol) {
@@ -561,6 +556,15 @@ static unsigned long bfd_hash_hash(const char *string) {
     hash += len + (len << 17);
     hash ^= hash >> 2;
     return hash;
+}
+
+static void push_shuffled_chain(u32 chain) {
+    if (shuffled_chains_size + 1 > MAX_SYMBOLS) {
+        fprintf(stderr, "error: MAX_SYMBOLS of %d was exceeded\n", MAX_SYMBOLS);
+        exit(EXIT_FAILURE);
+    }
+
+    shuffled_chains[shuffled_chains_size++] = chain;
 }
 
 // See the documentation of push_hash() for how this function roughly works
@@ -608,15 +612,15 @@ static void generate_shuffled_symbols(void) {
 
     memset(buckets, 0, DEFAULT_SIZE * sizeof(u32));
 
-    chains_size = 0;
+    shuffled_chains_size = 0;
 
-    push_chain(0); // The first entry in the chain is always STN_UNDEF
+    push_shuffled_chain(0); // The first entry in the chain is always STN_UNDEF
 
     for (size_t i = 0; i < symbols_size; i++) {
         u32 hash = bfd_hash_hash(symbols[i]);
         u32 bucket_index = hash % DEFAULT_SIZE;
 
-        push_chain(buckets[bucket_index]);
+        push_shuffled_chain(buckets[bucket_index]);
 
         buckets[bucket_index] = i + 1;
     }
@@ -630,7 +634,7 @@ static void generate_shuffled_symbols(void) {
         push_shuffled_symbol(symbols[chain_index - 1]);
 
         while (true) {
-            chain_index = chains[chain_index];
+            chain_index = shuffled_chains[chain_index];
             if (chain_index == 0) {
                 break;
             }
@@ -649,8 +653,8 @@ static void push_symbol(char *symbol) {
     symbols[symbols_size++] = symbol;
 }
 
-int main(void) {
-    symbols_size = 0;
+static void generate_simple_so(void) {
+    // TODO: Iterate the AST to push symbols
     push_symbol("a");
     push_symbol("b");
     push_symbol("c");
@@ -668,8 +672,22 @@ int main(void) {
     push_symbol("o");
     push_symbol("p");
 
-    shuffled_symbols_size = 0;
     generate_shuffled_symbols();
 
+    reset();
+
+    create_sections();
+    write_bytes();
+
+    FILE *f = fopen("foo.so", "w");
+    if (!f) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+    fwrite(bytes, sizeof(u8), bytes_size, f);
+    fclose(f);
+}
+
+int main(void) {
     generate_simple_so();
 }

@@ -466,7 +466,7 @@ static void write_bytes() {
     write_elf_header();
 }
 
-static void parse() {
+static void push_structs() {
     // 0x40 to 0x120
     push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
     push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
@@ -514,8 +514,8 @@ static void reset(void) {
 static void generate_simple_so(void) {
     reset();
 
-    write_bytes(); // TODO: Put this after parse()!
-    parse();
+    write_bytes(); // TODO: Put this after push_structs()!
+    push_structs();
 
     FILE *f = fopen("foo.so", "w");
     if (!f) {

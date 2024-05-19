@@ -4,7 +4,14 @@
     {
       "label": "Compile generate_full_so.c",
       "command": "gcc",
-      "args": ["generate_full_so.c", "-g"]
+      "args": [
+        "generate_full_so.c",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-g"
+      ]
     }
   ]
 }

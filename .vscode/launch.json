@@ -2,12 +2,12 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch generate_complex_so.c",
+      "name": "Launch generate_full_so.c",
       "type": "cppdbg",
       "request": "launch",
-	  "cwd": ".",
+      "cwd": ".",
       "program": "${workspaceRoot}/a.out",
-      "preLaunchTask": "Compile generate_complex_so.c"
+      "preLaunchTask": "Compile generate_full_so.c"
     }
   ]
 }

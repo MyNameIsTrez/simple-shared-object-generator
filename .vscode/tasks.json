@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Compile generate_complex_so.c",
+      "label": "Compile generate_full_so.c",
       "command": "gcc",
-      "args": ["generate_complex_so.c", "-g"]
+      "args": ["generate_full_so.c", "-g"]
     }
   ]
 }

@@ -368,7 +368,7 @@ static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_add
     push_number(alignment, 8);
 }
 
-static void push_elf_header(void) {
+static void write_elf_header(void) {
     // Magic number
     // 0x0 to 0x4
     push_byte(0x7f);
@@ -461,21 +461,12 @@ static void push_elf_header(void) {
     push_byte(0);
 }
 
-static void reset(void) {
-    symbols_size = 0;
-    shuffled_symbols_size = 0;
-    chains_size = 0;
-    bytes_size = 0;
-}
-
 static void write_bytes() {
-
+    // 0x0 to 0x40
+    write_elf_header();
 }
 
 static void parse() {
-    // 0x0 to 0x40
-    push_elf_header();
-
     // 0x40 to 0x120
     push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
     push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
@@ -515,21 +506,23 @@ static void parse() {
     push_section_headers();
 }
 
+static void reset(void) {
+    chains_size = 0;
+    bytes_size = 0;
+}
+
 static void generate_simple_so(void) {
     reset();
+
+    write_bytes(); // TODO: Put this after parse()!
+    parse();
 
     FILE *f = fopen("foo.so", "w");
     if (!f) {
         perror("fopen");
         exit(EXIT_FAILURE);
     }
-
-    parse();
-
-    write_bytes();
-
     fwrite(bytes, sizeof(u8), bytes_size, f);
-
     fclose(f);
 }
 
@@ -650,6 +643,7 @@ static void push_symbol(char *symbol) {
 }
 
 int main(void) {
+    symbols_size = 0;
     push_symbol("a");
     push_symbol("b");
     push_symbol("c");
@@ -667,6 +661,7 @@ int main(void) {
     push_symbol("o");
     push_symbol("p");
 
+    shuffled_symbols_size = 0;
     generate_shuffled_symbols();
 
     generate_simple_so();

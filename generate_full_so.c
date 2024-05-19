@@ -461,6 +461,78 @@ static void push_elf_header(void) {
     push_byte(0);
 }
 
+static void reset(void) {
+    symbols_size = 0;
+    shuffled_symbols_size = 0;
+    chains_size = 0;
+    bytes_size = 0;
+}
+
+static void write_bytes() {
+
+}
+
+static void parse() {
+    // 0x0 to 0x40
+    push_elf_header();
+
+    // 0x40 to 0x120
+    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
+    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
+    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
+    push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
+
+    // 0x120 to 0x134
+    push_hash();
+
+    // 0x138 to 0x168
+    push_dynsym();
+
+    // 0x168 to 0x16d
+    push_dynstr();
+
+    // TODO: REMOVE!
+    // 0x16d to 0x1f50
+    push_zeros(3); // Alignment
+    push_zeros(0x1de0);
+
+    // 0x1f50 to 0x2000
+    push_dynamic();
+
+    // 0x2000 to 0x2008
+    push_data();
+
+    // 0x2008 to 0x2080
+    push_symtab();
+
+    // 0x2080 to 0x2094
+    push_strtab();
+
+    // 0x2094 to 0x20e0
+    push_shstrtab();
+
+    // 0x20e0 to end
+    push_section_headers();
+}
+
+static void generate_simple_so(void) {
+    reset();
+
+    FILE *f = fopen("foo.so", "w");
+    if (!f) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    parse();
+
+    write_bytes();
+
+    fwrite(bytes, sizeof(u8), bytes_size, f);
+
+    fclose(f);
+}
+
 static void push_shuffled_symbol(char *shuffled_symbol) {
     if (shuffled_symbols_size + 1 > MAX_SYMBOLS) {
         fprintf(stderr, "error: MAX_SYMBOLS of %d was exceeded\n", MAX_SYMBOLS);
@@ -577,31 +649,7 @@ static void push_symbol(char *symbol) {
     symbols[symbols_size++] = symbol;
 }
 
-static void reset(void) {
-    symbols_size = 0;
-    shuffled_symbols_size = 0;
-    chains_size = 0;
-    bytes_size = 0;
-}
-
-static void generate_simple_so(void) {
-    reset();
-
-    FILE *f = fopen("foo.so", "w");
-    if (!f) {
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
-
-    // 0x0 to 0x40
-    push_elf_header();
-
-    // 0x40 to 0x120
-    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
-    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
-    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
-    push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
-
+int main(void) {
     push_symbol("a");
     push_symbol("b");
     push_symbol("c");
@@ -621,43 +669,5 @@ static void generate_simple_so(void) {
 
     generate_shuffled_symbols();
 
-    // 0x120 to 0x134
-    push_hash();
-
-    // 0x138 to 0x168
-    push_dynsym();
-
-    // 0x168 to 0x16d
-    push_dynstr();
-
-    // TODO: REMOVE!
-    // 0x16d to 0x1f50
-    push_zeros(3); // Alignment
-    push_zeros(0x1de0);
-
-    // 0x1f50 to 0x2000
-    push_dynamic();
-
-    // 0x2000 to 0x2008
-    push_data();
-
-    // 0x2008 to 0x2080
-    push_symtab();
-
-    // 0x2080 to 0x2094
-    push_strtab();
-
-    // 0x2094 to 0x20e0
-    push_shstrtab();
-
-    // 0x20e0 to end
-    push_section_headers();
-
-    fwrite(bytes, sizeof(u8), bytes_size, f);
-
-    fclose(f);
-}
-
-int main(void) {
     generate_simple_so();
 }

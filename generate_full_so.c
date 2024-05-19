@@ -482,7 +482,7 @@ static void write_bytes() {
     write_section_headers();
 }
 
-static void push_sections() {
+static void create_sections() {
     // 0x120 to 0x134
     push_hash();
 
@@ -521,8 +521,8 @@ static void reset(void) {
 static void generate_simple_so(void) {
     reset();
 
-    write_bytes(); // TODO: Put this after push_sections()!
-    push_sections();
+    create_sections();
+    write_bytes();
 
     FILE *f = fopen("foo.so", "w");
     if (!f) {
@@ -563,6 +563,8 @@ static unsigned long bfd_hash_hash(const char *string) {
     return hash;
 }
 
+// See the documentation of push_hash() for how this function roughly works
+//
 // name | index
 // "a"  | 3485
 // "b"  |  245
@@ -600,8 +602,6 @@ static unsigned long bfd_hash_hash(const char *string) {
 // "e"
 // "m"
 static void generate_shuffled_symbols(void) {
-    // See the documentation above push_hash() for how this function works
-
     #define DEFAULT_SIZE 4051 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/hash.c#l345
 
     static u32 buckets[DEFAULT_SIZE];

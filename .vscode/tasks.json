@@ -1,0 +1,10 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compile generate_complex_so.c",
+      "command": "gcc",
+      "args": ["generate_complex_so.c", "-g"]
+    }
+  ]
+}

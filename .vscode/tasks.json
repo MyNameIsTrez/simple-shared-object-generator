@@ -10,6 +10,7 @@
         "-Wextra",
         "-Wpedantic",
         "-Werror",
+        "-Wfatal-errors",
         "-g"
       ]
     }

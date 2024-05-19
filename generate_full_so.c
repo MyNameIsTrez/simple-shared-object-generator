@@ -313,7 +313,7 @@ static void push_section_header(u32 name_offset, u32 type, u64 flags, u64 addres
     push_number(entry_size, 8);
 }
 
-static void push_section_headers(void) {
+static void write_section_headers(void) {
     // Null section
     // 0x20e0 to 0x2120
     push_zeros(0x40);
@@ -355,6 +355,10 @@ static void push_section_headers(void) {
     // .shstrtab: Section header string table section
     // 0x2320 to end
     push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2094, 0x4a, 0, 0, 1, 0);
+}
+
+static void write_sections(void) {
+
 }
 
 static void write_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
@@ -470,9 +474,15 @@ static void write_bytes() {
     write_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
     write_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
     write_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
+
+    // 0x120 to 0x20e0
+    write_sections();
+
+    // 0x20e0 to end
+    write_section_headers();
 }
 
-static void push_structs() {
+static void push_sections() {
     // 0x120 to 0x134
     push_hash();
 
@@ -501,9 +511,6 @@ static void push_structs() {
 
     // 0x2094 to 0x20e0
     push_shstrtab();
-
-    // 0x20e0 to end
-    push_section_headers();
 }
 
 static void reset(void) {
@@ -514,8 +521,8 @@ static void reset(void) {
 static void generate_simple_so(void) {
     reset();
 
-    write_bytes(); // TODO: Put this after push_structs()!
-    push_structs();
+    write_bytes(); // TODO: Put this after push_sections()!
+    push_sections();
 
     FILE *f = fopen("foo.so", "w");
     if (!f) {

@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,11 +50,17 @@ typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-static u8 bytes[MAX_BYTES];
-static size_t bytes_size;
+static char *symbols[MAX_SYMBOLS];
+static size_t symbols_size;
+
+static char *shuffled_symbols[MAX_SYMBOLS];
+static size_t shuffled_symbols_size;
 
 static u32 chains[MAX_SYMBOLS];
 static size_t chains_size;
+
+static u8 bytes[MAX_BYTES];
+static size_t bytes_size;
 
 static void push_byte(u8 byte) {
     if (bytes_size + 1 > MAX_BYTES) {
@@ -114,7 +121,7 @@ static void push_number(u64 n, size_t byte_count) {
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 // We specified the .symtab section to have an entry_size of 0x18 bytes
 // TODO: I am pretty sure the third "size" argument here is actually "offset", seeing the spots we're calling this?
-static void push_symbol(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
+static void push_symbol_entry(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
     push_number(name, 4);
     push_number(value, 4);
     push_number(size, 4);
@@ -125,11 +132,11 @@ static void push_symbol(u32 name, u32 value, u32 size, u32 info, u32 other, u32 
 
 static void push_symtab() {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    push_symbol(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
-    push_symbol(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
-    push_symbol(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
-    push_symbol(16, 0x60010, 0x2000, 0, 0, 0); // "foo"
+    push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
+    push_symbol_entry(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
+    push_symbol_entry(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
+    push_symbol_entry(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
+    push_symbol_entry(16, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
 
 static void push_data() {
@@ -164,11 +171,11 @@ static void push_dynstr() {
 
 static void push_dynsym() {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    push_symbol(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
+    push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
+    push_symbol_entry(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
 
-static u32 get_nbucket(size_t symbol_count) {
+static u32 get_nbucket() {
     // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
     //
     // Array used to determine the number of hash table buckets to use
@@ -185,7 +192,7 @@ static u32 get_nbucket(size_t symbol_count) {
     for (size_t i = 0; nbucket_options[i] != 0; i++) {
         nbucket = nbucket_options[i];
 
-        if (symbol_count < nbucket_options[i + 1]) {
+        if (symbols_size < nbucket_options[i + 1]) {
             break;
         }
     }
@@ -254,21 +261,23 @@ static void push_chain(u32 chain) {
 // 14  a                 |  97             1                  /-> 12 --/ |
 // 15  e                 | 101             2 **               |  (13)----/
 // 16  m                 | 109             1 **               \--(14)
-static void push_hash(char *symbols[]) {
-    size_t symbol_count = 16; // TODO: Turn this into symbols_size, tracking the length of the global symbols array
-
-    u32 nbucket = get_nbucket(symbol_count);
+static void push_hash() {
+    u32 nbucket = get_nbucket();
     push_number(nbucket, 4);
 
-    u32 nchain = 1 + symbol_count; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
+    u32 nchain = 1 + symbols_size; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
     push_number(nchain, 4);
 
     static u32 buckets[MAX_BUCKETS];
 
     memset(buckets, 0, nbucket * sizeof(u32));
 
-    for (size_t i = 0; i < symbol_count; i++) {
-        u32 hash = elf_hash(symbols[i]);
+    chains_size = 0;
+
+    push_chain(0); // The first entry in the chain is always STN_UNDEF
+
+    for (size_t i = 0; i < symbols_size; i++) {
+        u32 hash = elf_hash(shuffled_symbols[i]);
         u32 bucket_index = hash % nbucket;
 
         push_chain(buckets[bucket_index]);
@@ -279,8 +288,6 @@ static void push_hash(char *symbols[]) {
     for (size_t i = 0; i < nbucket; i++) {
         push_number(buckets[i], 4);
     }
-
-    push_number(0, 4); // The first entry in the chain is always STN_UNDEF
 
     for (size_t i = 0; i < chains_size; i++) {
         push_number(chains[i], 4);
@@ -450,14 +457,18 @@ static void push_elf_header() {
     push_byte(0);
 }
 
-static void reset() {
-    bytes_size = 0;
-    chains_size = 0;
+static void push_shuffled_symbol(char *shuffled_symbol) {
+    if (shuffled_symbols_size + 1 > MAX_SYMBOLS) {
+        fprintf(stderr, "error: MAX_SYMBOLS of %d was exceeded\n", MAX_SYMBOLS);
+        exit(EXIT_FAILURE);
+    }
+
+    shuffled_symbols[shuffled_symbols_size++] = shuffled_symbol;
 }
 
 // This is solely here to put the symbols in the same weird order as ld does
 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/hash.c#l508
-static inline unsigned long bfd_hash_hash(const char *string, unsigned int *lenp) {
+static unsigned long bfd_hash_hash(const char *string) {
     const unsigned char *s;
     unsigned long hash;
     unsigned int len;
@@ -473,9 +484,6 @@ static inline unsigned long bfd_hash_hash(const char *string, unsigned int *lenp
     len = (s - (const unsigned char *) string) - 1;
     hash += len + (len << 17);
     hash ^= hash >> 2;
-    if (lenp != NULL) {
-        *lenp = len;
-    }
     return hash;
 }
 
@@ -497,11 +505,79 @@ static inline unsigned long bfd_hash_hash(const char *string, unsigned int *lenp
 // "o"  |  967
 // "p"  |  256
 //
-// See https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/hash.c#l618
-static char **get_shuffled_symbols() {
+// This gets shuffled by ld to this:
+// (see https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/hash.c#l618)
+// "b"
+// "p"
+// "j"
+// "n"
+// "f"
+// "g"
+// "o"
+// "l"
+// "k"
+// "i"
+// "c"
+// "d"
+// "h"
+// "a"
+// "e"
+// "m"
+static void generate_shuffled_symbols() {
+    // See the documentation above push_hash() for how this function works
+
     #define DEFAULT_SIZE 4051 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/hash.c#l345
 
+    static u32 buckets[DEFAULT_SIZE];
 
+    memset(buckets, 0, DEFAULT_SIZE * sizeof(u32));
+
+    chains_size = 0;
+
+    push_chain(0); // The first entry in the chain is always STN_UNDEF
+
+    for (size_t i = 0; i < symbols_size; i++) {
+        u32 hash = bfd_hash_hash(symbols[i]);
+        u32 bucket_index = hash % DEFAULT_SIZE;
+
+        push_chain(buckets[bucket_index]);
+
+        buckets[bucket_index] = i + 1;
+    }
+
+    for (size_t i = 0; i < DEFAULT_SIZE; i++) {
+        u32 chain_index = buckets[i];
+        if (chain_index == 0) {
+            continue;
+        }
+
+        push_shuffled_symbol(symbols[chain_index - 1]);
+
+        while (true) {
+            chain_index = chains[chain_index];
+            if (chain_index == 0) {
+                break;
+            }
+
+            push_shuffled_symbol(symbols[chain_index - 1]);
+        }
+    }
+}
+
+static void push_symbol(char *symbol) {
+    if (symbols_size + 1 > MAX_SYMBOLS) {
+        fprintf(stderr, "error: MAX_SYMBOLS of %d was exceeded\n", MAX_SYMBOLS);
+        exit(EXIT_FAILURE);
+    }
+
+    symbols[symbols_size++] = symbol;
+}
+
+static void reset() {
+    symbols_size = 0;
+    shuffled_symbols_size = 0;
+    chains_size = 0;
+    bytes_size = 0;
 }
 
 static void generate_simple_so() {
@@ -522,49 +598,24 @@ static void generate_simple_so() {
     push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
-    size_t symbol_count = 16; 
+    push_symbol("a");
+    push_symbol("b");
+    push_symbol("c");
+    push_symbol("d");
+    push_symbol("e");
+    push_symbol("f");
+    push_symbol("g");
+    push_symbol("h");
+    push_symbol("i");
+    push_symbol("j");
+    push_symbol("k");
+    push_symbol("l");
+    push_symbol("m");
+    push_symbol("n");
+    push_symbol("o");
+    push_symbol("p");
 
-    char *symbols[] = {
-        "a",
-        "b",
-        "c",
-        "d",
-        "e",
-        "f",
-        "g",
-        "h",
-        "i",
-        "j",
-        "k",
-        "l",
-        "m",
-        "n",
-        "o",
-        "p",
-    };
-
-    // TODO: Stop hardcoding this size of 16!
-    char *shuffled_symbols[16];
-    //     "b",
-    //     "p",
-    //     "j",
-    //     "n",
-    //     "f",
-    //     "g",
-    //     "o",
-    //     "l",
-    //     "k",
-    //     "i",
-    //     "c",
-    //     "d",
-    //     "h",
-    //     "a",
-    //     "e",
-    //     "m",
-
-    for (size_t i = 0; i < symbol_count; i++) {
-        u32 hash = bfd_hash_hash(symbols[i], );
-    }
+    generate_shuffled_symbols();
 
     // 0x120 to 0x134
     push_hash(shuffled_symbols);

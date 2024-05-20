@@ -371,7 +371,12 @@ static void push_section_headers(void) {
 static void push_dynsym(void) {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
     push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol_entry(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
+
+    // The symbols are pushed in shuffled_symbols order
+    push_symbol_entry(3, 0x60010, 0x2003, 0, 0, 0); // "b"
+    push_symbol_entry(5, 0x60010, 0x2006, 0, 0, 0); // "c"
+    push_symbol_entry(7, 0x60010, 0x2009, 0, 0, 0); // "d"
+    push_symbol_entry(1, 0x60010, 0x2000, 0, 0, 0); // "a"
 }
 
 static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
@@ -502,36 +507,36 @@ static void push_bytes() {
     // 0x40 to 0x120
     push_program_headers();
 
-    // 0x120 to 0x134
+    // 0x120 to 0x178
     push_hash();
 
-    // 0x138 to 0x168
+    // 0x178 to ?
     push_dynsym();
 
-    // 0x168 to 0x16d
+    // ? to ?
     push_dynstr();
 
     // TODO: REMOVE!
-    // 0x16d to 0x1f50
+    // ? to ?
     push_zeros(3); // Alignment
     push_zeros(0x1de0);
 
-    // 0x1f50 to 0x2000
+    // ? to ?
     push_dynamic();
 
-    // 0x2000 to 0x2008
+    // ? to ?
     push_data();
 
-    // 0x2008 to 0x2080
+    // ? to ?
     push_symtab();
 
-    // 0x2080 to 0x2094
+    // ? to ?
     push_strtab();
 
-    // 0x2094 to 0x20e0
+    // ? to ?
     push_shstrtab();
 
-    // 0x20e0 to end
+    // ? to end
     push_section_headers();
 }
 
@@ -666,18 +671,18 @@ static void generate_simple_so(void) {
     push_symbol("b");
     push_symbol("c");
     push_symbol("d");
-    push_symbol("e");
-    push_symbol("f");
-    push_symbol("g");
-    push_symbol("h");
-    push_symbol("i");
-    push_symbol("j");
-    push_symbol("k");
-    push_symbol("l");
-    push_symbol("m");
-    push_symbol("n");
-    push_symbol("o");
-    push_symbol("p");
+    // push_symbol("e");
+    // push_symbol("f");
+    // push_symbol("g");
+    // push_symbol("h");
+    // push_symbol("i");
+    // push_symbol("j");
+    // push_symbol("k");
+    // push_symbol("l");
+    // push_symbol("m");
+    // push_symbol("n");
+    // push_symbol("o");
+    // push_symbol("p");
 
     generate_shuffled_symbols();
 

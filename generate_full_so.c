@@ -8,6 +8,7 @@
 #define MAX_SYMBOLS 420420
 
 #define MAX_HASH_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
+#define DATA_OFFSET 0x2000 // Probably needs to be able to grow when there's lots of code in the file
 
 enum d_type {
     DT_NULL = 0, // Marks the end of the _DYNAMIC array
@@ -61,9 +62,12 @@ static size_t chains_size;
 static char *shuffled_symbols[MAX_SYMBOLS];
 static size_t shuffled_symbols_size;
 
+static size_t shuffled_symbols_offsets[MAX_SYMBOLS];
+
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
 
+static size_t hash_size;
 static size_t dynsym_offset;
 static size_t dynstr_offset;
 static size_t dynstr_size;
@@ -117,7 +121,7 @@ static void push_shstrtab(void) {
     push_string(".eh_frame");
     push_string(".dynamic");
     push_string(".data");
-    push_zeros(2);
+    push_zeros(6);
 }
 
 static void push_strtab(void) {
@@ -143,8 +147,6 @@ static void push_number(u64 n, size_t byte_count) {
 }
 
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-// We specified the .symtab section to have an entry_size of 0x18 bytes
-// TODO: I am pretty sure the third "size" argument here is actually "offset", seeing the spots we're calling this?
 static void push_symbol_entry(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
     push_number(name, 4);
     push_number(value, 4);
@@ -156,16 +158,32 @@ static void push_symbol_entry(u32 name, u32 value, u32 size, u32 info, u32 other
 
 static void push_symtab(void) {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+    // The names are in .strtab
     push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
     push_symbol_entry(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
     push_symbol_entry(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
     push_symbol_entry(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
-    push_symbol_entry(16, 0x60010, 0x2000, 0, 0, 0); // "foo"
+
+    u32 name = 16;
+
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 3, 0, 0, 0); // "b"
+    name += sizeof("b");
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 6, 0, 0, 0); // "c"
+    name += sizeof("c");
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 9, 0, 0, 0); // "d"
+    name += sizeof("d");
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
+    name += sizeof("a");
 }
 
 static void push_data(void) {
-    push_string("bar");
-    push_zeros(4);
+    // TODO: Use the data from the AST
+    push_string("a^");
+    push_string("b^");
+    push_string("c^");
+    push_string("d^");
+
+    push_zeros(4); // Alignment
 }
 
 // See https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-42444.html
@@ -191,7 +209,7 @@ static void push_dynamic() {
 static void push_dynstr(void) {
     dynstr_offset = bytes_size;
 
-    // Offset 0 always has '\0'
+    // .dynstr always starts with a '\0'
     dynstr_size = 1;
 
     push_byte(0);
@@ -288,6 +306,8 @@ static void push_chain(u32 chain) {
 // 15  e                 | 101             2 **               |  (13)----/
 // 16  m                 | 109             1 **               \--(14)
 static void push_hash(void) {
+    size_t start_size = bytes_size;
+
     u32 nbucket = get_nbucket();
     push_number(nbucket, 4);
 
@@ -316,6 +336,8 @@ static void push_hash(void) {
     for (size_t i = 0; i < chains_size; i++) {
         push_number(chains[i], 4);
     }
+
+    hash_size = bytes_size - start_size;
 }
 
 static void push_section_header(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -335,45 +357,45 @@ static void push_section_headers(void) {
     section_headers_offset = bytes_size;
 
     // Null section
-    // 0x20e0 to 0x2120
+    // 0x2138 to 0x2178
     push_zeros(0x40);
 
     // .hash: Hash section
-    // 0x2120 to 0x2160
-    push_section_header(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, 0x14, 2, 0, 8, 4);
+    // 0x2178 to 0x21b8
+    push_section_header(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, hash_size, 2, 0, 8, 4);
 
     // .dynsym: Dynamic linker symbol table section
-    // 0x2160 to 0x21a0
+    // 0x21b8 to 0x21f8
     push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, dynsym_offset, dynsym_offset, 0x30, 3, 1, 8, 0x18);
 
     // .dynstr: String table section
-    // 0x21a0 to 0x21e0
+    // 0x21f8 to 0x2230
     push_section_header(0x29, SHT_STRTAB, SHF_ALLOC, dynstr_offset, dynstr_offset, dynstr_size, 0, 0, 1, 0);
 
     // .eh_frame: Program data section
-    // 0x21e0 to 0x2220
+    // 0x2230 to 0x2278
     push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC, 0x1000, 0x1000, 0, 0, 0, 8, 0);
 
     // .dynamic: Dynamic linking information section
-    // 0x2220 to 0x2260
+    // 0x2278 to 0x22b8
     push_section_header(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, 0x1f50, 0x1f50, 0xb0, 3, 0, 8, 0x10);
 
     // .data: Data section
-    // 0x2260 to 0x22a0
-    push_section_header(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, 0x2000, 0x2000, 4, 0, 0, 4, 0);
+    // 0x22b8 to 0x22f8
+    push_section_header(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, DATA_OFFSET, DATA_OFFSET, 4, 0, 0, 4, 0);
 
     // .symtab: Symbol table section
-    // 0x22a0 to 0x22e0
+    // 0x22f8 to 0x2338
     // "link" of 8 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
     // "info" of 4 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
     push_section_header(1, SHT_SYMTAB, 0, 0, 0x2008, 0x78, 8, 4, 8, 0x18);
 
     // .strtab: String table section
-    // 0x22e0 to 0x2320
+    // 0x2338 to 0x2378
     push_section_header(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2080, 0x14, 0, 0, 1, 0);
 
     // .shstrtab: Section header string table section
-    // 0x2320 to end
+    // 0x2378 to end
     push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2094, 0x4a, 0, 0, 1, 0);
 }
 
@@ -384,11 +406,11 @@ static void push_dynsym(void) {
     push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
 
     // The symbols are pushed in shuffled_symbols order
-    // The name offset starts at 1, because offset 0 always has '\0'
-    push_symbol_entry(3, 0x60010, 0x2003, 0, 0, 0); // "b"
-    push_symbol_entry(5, 0x60010, 0x2006, 0, 0, 0); // "c"
-    push_symbol_entry(7, 0x60010, 0x2009, 0, 0, 0); // "d"
-    push_symbol_entry(1, 0x60010, 0x2000, 0, 0, 0); // "a"
+    // The .dynstr name offset starts at 1, because it always start with a '\0'
+    push_symbol_entry(3, 0x60010, DATA_OFFSET + 3, 0, 0, 0); // "b"
+    push_symbol_entry(5, 0x60010, DATA_OFFSET + 6, 0, 0, 0); // "c"
+    push_symbol_entry(7, 0x60010, DATA_OFFSET + 9, 0, 0, 0); // "d"
+    push_symbol_entry(1, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
 }
 
 static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
@@ -536,27 +558,20 @@ static void push_bytes() {
     // 0x1f50 to 0x2000
     push_dynamic();
 
-    // 0x2000 to ?
+    // 0x2000 to 0x2010
     push_data();
 
-    // ? to ?
+    // 0x2010 to 0x20d0
     push_symtab();
 
-    // ? to ?
+    // 0x20d0 to 0x20e8
     push_strtab();
 
-    // ? to ?
+    // 0x20e8 to 0x2134
     push_shstrtab();
 
-    // ? to end
+    // 0x2134 to end
     push_section_headers();
-}
-
-static void reset(void) {
-    symbols_size = 0;
-    chains_size = 0;
-    shuffled_symbols_size = 0;
-    bytes_size = 0;
 }
 
 static void push_shuffled_symbol(char *shuffled_symbol) {
@@ -675,6 +690,13 @@ static void push_symbol(char *symbol) {
     symbols[symbols_size++] = symbol;
 }
 
+static void reset(void) {
+    symbols_size = 0;
+    chains_size = 0;
+    shuffled_symbols_size = 0;
+    bytes_size = 0;
+}
+
 static void generate_simple_so(void) {
     reset();
 
@@ -697,6 +719,12 @@ static void generate_simple_so(void) {
     // push_symbol("p");
 
     generate_shuffled_symbols();
+
+    // TODO: Use the global symbol data from the AST
+    shuffled_symbols_offsets[0] = 3;
+    shuffled_symbols_offsets[1] = 6;
+    shuffled_symbols_offsets[2] = 9;
+    shuffled_symbols_offsets[3] = 0;
 
     push_bytes();
 

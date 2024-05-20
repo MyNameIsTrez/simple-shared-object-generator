@@ -1,4 +1,4 @@
-gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -fsanitize=address,undefined -g generate_full_so.c && ./a.out && xxd foo.so > mine.hex
+gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_full_so.c && ./a.out && xxd foo.so > mine.hex
 
 nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && xxd foo.so > goal.hex
 

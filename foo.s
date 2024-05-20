@@ -2,10 +2,10 @@ global a
 global b
 global c
 global d
-; global e
-; global f
-; global g
-; global h
+global e
+global f
+global g
+global h
 ; global i
 ; global j
 ; global k
@@ -161,10 +161,10 @@ a: db "a^", 0
 b: db "b^", 0
 c: db "c^", 0
 d: db "d^", 0
-; e: db "e^", 0
-; f: db "f^", 0
-; g: db "g^", 0
-; h: db "h^", 0
+e: db "e^", 0
+f: db "f^", 0
+g: db "g^", 0
+h: db "h^", 0
 ; i: db "i^", 0
 ; j: db "j^", 0
 ; k: db "k^", 0

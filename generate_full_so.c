@@ -62,6 +62,8 @@ static size_t chains_size;
 static char *shuffled_symbols[MAX_SYMBOLS];
 static size_t shuffled_symbols_size;
 
+static size_t shuffled_symbol_index_to_symbol_index[MAX_SYMBOLS];
+
 static size_t shuffled_symbols_offsets[MAX_SYMBOLS];
 
 static u8 bytes[MAX_BYTES];
@@ -111,6 +113,13 @@ static void push_zeros(size_t count) {
     }
 }
 
+static void push_alignment(size_t alignment) {
+    size_t excess = bytes_size % alignment;
+    if (excess > 0) {
+        push_zeros(alignment - excess);
+    }
+}
+
 static void push_string(char *str) {
     for (size_t i = 0; i < strlen(str); i++) {
         push_byte(str[i]);
@@ -134,7 +143,7 @@ static void push_shstrtab(void) {
 
     shstrtab_size = bytes_size - shstrtab_offset;
 
-    push_zeros(6); // Alignment
+    push_alignment(8);
 }
 
 static void push_strtab(void) {
@@ -186,13 +195,21 @@ static void push_symtab(void) {
     u32 name = 16;
 
     push_symbol_entry(name, 0x60010, DATA_OFFSET + 3, 0, 0, 0); // "b"
-    name += sizeof("b");
+    name += strlen("b") + 1;
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 15, 0, 0, 0); // "b"
+    name += strlen("f") + 1;
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 18, 0, 0, 0); // "b"
+    name += strlen("g") + 1;
     push_symbol_entry(name, 0x60010, DATA_OFFSET + 6, 0, 0, 0); // "c"
-    name += sizeof("c");
+    name += strlen("c") + 1;
     push_symbol_entry(name, 0x60010, DATA_OFFSET + 9, 0, 0, 0); // "d"
-    name += sizeof("d");
+    name += strlen("d") + 1;
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 21, 0, 0, 0); // "b"
+    name += strlen("h") + 1;
     push_symbol_entry(name, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
-    name += sizeof("a");
+    name += strlen("a") + 1;
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 12, 0, 0, 0); // "a"
+    name += strlen("e") + 1;
 
     symtab_size = bytes_size - symtab_offset;
 }
@@ -203,8 +220,12 @@ static void push_data(void) {
     push_string("b^");
     push_string("c^");
     push_string("d^");
+    push_string("e^");
+    push_string("f^");
+    push_string("g^");
+    push_string("h^");
 
-    push_zeros(4); // Alignment
+    push_alignment(8);
 }
 
 // See https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-42444.html
@@ -428,10 +449,14 @@ static void push_dynsym(void) {
 
     // The symbols are pushed in shuffled_symbols order
     // The .dynstr name offset starts at 1, because it always start with a '\0'
-    push_symbol_entry(3, 0x60010, DATA_OFFSET + 3, 0, 0, 0); // "b"
-    push_symbol_entry(5, 0x60010, DATA_OFFSET + 6, 0, 0, 0); // "c"
-    push_symbol_entry(7, 0x60010, DATA_OFFSET + 9, 0, 0, 0); // "d"
-    push_symbol_entry(1, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
+    for (size_t i = 0; i < symbols_size; i++) {
+        push_symbol_entry(1 + shuffled_symbol_index_to_symbol_index[i], 0x60010, DATA_OFFSET + shuffled_symbols_offsets[i], 0, 0, 0);
+
+        // push_symbol_entry(3, 0x60010, DATA_OFFSET + 3, 0, 0, 0); // "b"
+        // push_symbol_entry(5, 0x60010, DATA_OFFSET + 6, 0, 0, 0); // "c"
+        // push_symbol_entry(7, 0x60010, DATA_OFFSET + 9, 0, 0, 0); // "d"
+        // push_symbol_entry(1, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
+    }
 
     dynsym_size = bytes_size - dynsym_offset;
 }
@@ -509,7 +534,7 @@ static void push_elf_header(void) {
     push_byte(1);
     push_zeros(3);
 
-    // No execution entry point address
+    // Execution entry point address
     // 0x18 to 0x20
     push_zeros(8);
 
@@ -576,7 +601,7 @@ static void push_bytes() {
     // TODO: REMOVE!
     // 0x1c9 to 0x1f50
     push_zeros(5); // Alignment
-    push_zeros(0x1d82);
+    push_zeros(0x1d0a);
 
     // 0x1f50 to 0x2000
     push_dynamic();
@@ -691,6 +716,7 @@ static void generate_shuffled_symbols(void) {
             continue;
         }
 
+        shuffled_symbol_index_to_symbol_index[shuffled_symbols_size] = chain_index - 1;
         push_shuffled_symbol(symbols[chain_index - 1]);
 
         while (true) {
@@ -699,6 +725,7 @@ static void generate_shuffled_symbols(void) {
                 break;
             }
 
+            shuffled_symbol_index_to_symbol_index[shuffled_symbols_size] = chain_index - 1;
             push_shuffled_symbol(symbols[chain_index - 1]);
         }
     }
@@ -728,10 +755,10 @@ static void generate_simple_so(void) {
     push_symbol("b");
     push_symbol("c");
     push_symbol("d");
-    // push_symbol("e");
-    // push_symbol("f");
-    // push_symbol("g");
-    // push_symbol("h");
+    push_symbol("e");
+    push_symbol("f");
+    push_symbol("g");
+    push_symbol("h");
     // push_symbol("i");
     // push_symbol("j");
     // push_symbol("k");
@@ -744,10 +771,14 @@ static void generate_simple_so(void) {
     generate_shuffled_symbols();
 
     // TODO: Use the global symbol data from the AST
-    shuffled_symbols_offsets[0] = 3;
-    shuffled_symbols_offsets[1] = 6;
-    shuffled_symbols_offsets[2] = 9;
-    shuffled_symbols_offsets[3] = 0;
+    shuffled_symbols_offsets[0] = 3; // b
+    shuffled_symbols_offsets[1] = 15; // f
+    shuffled_symbols_offsets[2] = 18; // g
+    shuffled_symbols_offsets[3] = 6; // c
+    shuffled_symbols_offsets[4] = 9; // d
+    shuffled_symbols_offsets[5] = 21; // h
+    shuffled_symbols_offsets[6] = 0; // a
+    shuffled_symbols_offsets[7] = 12; // e
 
     push_bytes();
 

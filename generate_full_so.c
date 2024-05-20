@@ -66,7 +66,7 @@ static size_t shuffled_symbols_size;
 
 static size_t shuffled_symbol_index_to_symbol_index[MAX_SYMBOLS];
 
-static size_t shuffled_symbols_offsets[MAX_SYMBOLS];
+static size_t symbol_data_offsets[MAX_SYMBOLS];
 
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
@@ -456,7 +456,7 @@ static void push_dynsym(void) {
     for (size_t i = 0; i < symbols_size; i++) {
         size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
-        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], 0x60010, DATA_OFFSET + shuffled_symbols_offsets[i], 0, 0, 0);
+        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], 0x60010, DATA_OFFSET + symbol_data_offsets[symbol_index], 0, 0, 0);
     }
 
     dynsym_size = bytes_size - dynsym_offset;
@@ -788,14 +788,14 @@ static void generate_simple_so(void) {
     generate_shuffled_symbols();
 
     // TODO: Use the global symbol data from the AST
-    shuffled_symbols_offsets[0] = 3; // b
-    shuffled_symbols_offsets[1] = 15; // f
-    shuffled_symbols_offsets[2] = 18; // g
-    shuffled_symbols_offsets[3] = 6; // c
-    shuffled_symbols_offsets[4] = 9; // d
-    shuffled_symbols_offsets[5] = 21; // h
-    shuffled_symbols_offsets[6] = 0; // a
-    shuffled_symbols_offsets[7] = 12; // e
+    symbol_data_offsets[0] = 0; // a
+    symbol_data_offsets[1] = 3; // b
+    symbol_data_offsets[2] = 6; // c
+    symbol_data_offsets[3] = 9; // d
+    symbol_data_offsets[4] = 12; // e
+    symbol_data_offsets[5] = 15; // f
+    symbol_data_offsets[6] = 18; // g
+    symbol_data_offsets[7] = 21; // h
 
     push_bytes();
 

@@ -4,6 +4,8 @@ nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && xxd foo.s
 
 nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && readelf -a foo.so
 
+nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && gcc run_so.c && ./a.out
+
 ```
 | line | nbucket | symbol name |
 | 1    | 1       | a           |

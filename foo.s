@@ -155,6 +155,8 @@ global h
 ; global y_____
 ; global z_____
 
+global fn_a
+
 section .data
 
 a: db "a^", 0
@@ -313,3 +315,9 @@ h: db "h^", 0
 ; x_____: db "x_____^", 0
 ; y_____: db "y_____^", 0
 ; z_____: db "z_____^", 0
+
+section .text
+
+fn_a:
+	mov rax, 42
+	ret

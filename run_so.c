@@ -9,13 +9,21 @@ void print() {
         exit(EXIT_FAILURE);
     }
 
-    char *foo = dlsym(handle, "foo");
-    if (!foo) {
+    // char *foo = dlsym(handle, "foo");
+    // if (!foo) {
+    //     fprintf(stderr, "dlsym: %s", dlerror());
+    //     exit(EXIT_FAILURE);
+    // }
+
+    // puts(foo); // Prints "bar"
+
+    int (*fn_a)(void) = dlsym(handle, "fn_a");
+    if (!fn_a) {
         fprintf(stderr, "dlsym: %s", dlerror());
         exit(EXIT_FAILURE);
     }
 
-    puts(foo); // Prints "bar"
+    printf("%d\n", fn_a());
 }
 
 int main() {

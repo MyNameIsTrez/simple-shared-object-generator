@@ -67,10 +67,18 @@ static size_t shuffled_symbols_offsets[MAX_SYMBOLS];
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
 
+static size_t data_size;
 static size_t hash_size;
 static size_t dynsym_offset;
+static size_t dynsym_size;
 static size_t dynstr_offset;
 static size_t dynstr_size;
+static size_t symtab_offset;
+static size_t symtab_size;
+static size_t strtab_offset;
+static size_t strtab_size;
+static size_t shstrtab_offset;
+static size_t shstrtab_size;
 static size_t section_headers_offset;
 
 static void overwrite_address(u64 n, size_t bytes_offset) {
@@ -111,6 +119,8 @@ static void push_string(char *str) {
 }
 
 static void push_shstrtab(void) {
+    shstrtab_offset = bytes_size;
+
     push_byte(0);
     push_string(".symtab");
     push_string(".strtab");
@@ -121,16 +131,23 @@ static void push_shstrtab(void) {
     push_string(".eh_frame");
     push_string(".dynamic");
     push_string(".data");
-    push_zeros(6);
+
+    shstrtab_size = bytes_size - shstrtab_offset;
+
+    push_zeros(6); // Alignment
 }
 
 static void push_strtab(void) {
+    strtab_offset = bytes_size;
+
     push_byte(0);
     push_string("foo.s");
     push_string("_DYNAMIC");
     for (size_t i = 0; i < symbols_size; i++) {
         push_string(shuffled_symbols[i]);
     }
+
+    strtab_size = bytes_size - strtab_offset;
 }
 
 static void push_number(u64 n, size_t byte_count) {
@@ -157,6 +174,8 @@ static void push_symbol_entry(u32 name, u32 value, u32 size, u32 info, u32 other
 }
 
 static void push_symtab(void) {
+    symtab_offset = bytes_size;
+
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
     // The names are in .strtab
     push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
@@ -174,6 +193,8 @@ static void push_symtab(void) {
     name += sizeof("d");
     push_symbol_entry(name, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
     name += sizeof("a");
+
+    symtab_size = bytes_size - symtab_offset;
 }
 
 static void push_data(void) {
@@ -366,7 +387,7 @@ static void push_section_headers(void) {
 
     // .dynsym: Dynamic linker symbol table section
     // 0x21b8 to 0x21f8
-    push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, dynsym_offset, dynsym_offset, 0x30, 3, 1, 8, 0x18);
+    push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, dynsym_offset, dynsym_offset, dynsym_size, 3, 1, 8, 0x18);
 
     // .dynstr: String table section
     // 0x21f8 to 0x2230
@@ -382,21 +403,21 @@ static void push_section_headers(void) {
 
     // .data: Data section
     // 0x22b8 to 0x22f8
-    push_section_header(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, DATA_OFFSET, DATA_OFFSET, 4, 0, 0, 4, 0);
+    push_section_header(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, DATA_OFFSET, DATA_OFFSET, data_size, 0, 0, 4, 0);
 
     // .symtab: Symbol table section
     // 0x22f8 to 0x2338
     // "link" of 8 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
     // "info" of 4 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
-    push_section_header(1, SHT_SYMTAB, 0, 0, 0x2008, 0x78, 8, 4, 8, 0x18);
+    push_section_header(1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, 8, 4, 8, 0x18);
 
     // .strtab: String table section
     // 0x2338 to 0x2378
-    push_section_header(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2080, 0x14, 0, 0, 1, 0);
+    push_section_header(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, strtab_offset, strtab_size, 0, 0, 1, 0);
 
     // .shstrtab: Section header string table section
     // 0x2378 to end
-    push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2094, 0x4a, 0, 0, 1, 0);
+    push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, shstrtab_offset, shstrtab_size, 0, 0, 1, 0);
 }
 
 static void push_dynsym(void) {
@@ -411,6 +432,8 @@ static void push_dynsym(void) {
     push_symbol_entry(5, 0x60010, DATA_OFFSET + 6, 0, 0, 0); // "c"
     push_symbol_entry(7, 0x60010, DATA_OFFSET + 9, 0, 0, 0); // "d"
     push_symbol_entry(1, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
+
+    dynsym_size = bytes_size - dynsym_offset;
 }
 
 static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
@@ -430,7 +453,7 @@ static void push_program_headers(void) {
 
     // TODO: Use the data from the AST
     // Note that it's possible to have data that isn't exported
-    size_t data_size = symbols_size * sizeof("a^");
+    data_size = symbols_size * sizeof("a^");
 
     // Program data
     // 0x78 to 0xb0

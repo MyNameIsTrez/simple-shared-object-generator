@@ -385,6 +385,25 @@ static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_add
     push_number(alignment, 8);
 }
 
+static void push_program_headers(void) {
+    // 0x40 to 0x78
+    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
+
+    // TODO: Use the data from the AST
+    // Note that it's possible to have data that isn't exported
+    size_t data_size = symbols_size * sizeof("a^");
+
+    // Program data
+    // 0x78 to 0xb0
+    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0 + data_size, 0xb0 + data_size, 0x1000);
+
+    // 0xb0 to 0xe8
+    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
+
+    // 0xe8 to 0x120
+    push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
+}
+
 static void push_elf_header(void) {
     // Magic number
     // 0x0 to 0x4
@@ -481,10 +500,7 @@ static void push_bytes() {
     push_elf_header();
 
     // 0x40 to 0x120
-    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
-    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
-    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
-    push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
+    push_program_headers();
 
     // 0x120 to 0x134
     push_hash();
@@ -645,7 +661,7 @@ static void push_symbol(char *symbol) {
 static void generate_simple_so(void) {
     reset();
 
-    // TODO: Iterate the AST to push symbols
+    // TODO: Use the symbols from the AST
     push_symbol("a");
     push_symbol("b");
     push_symbol("c");

@@ -64,6 +64,23 @@ static size_t shuffled_symbols_size;
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
 
+static u64 section_headers_offset;
+
+static void overwrite_address(u64 n, size_t bytes_offset) {
+    for (size_t i = 0; i < 8; i++) {
+        // Little-endian requires the least significant byte first
+        bytes[bytes_offset++] = n & 0xff;
+
+        n >>= 8; // Shift right by one byte
+    }
+}
+
+static void fix_elf_header_addresses() {
+    // Section header table offset
+    // 0x28 to 0x30
+    overwrite_address(section_headers_offset, 0x28);
+}
+
 static void push_byte(u8 byte) {
     if (bytes_size + 1 > MAX_BYTES) {
         fprintf(stderr, "error: MAX_BYTES of %d was exceeded\n", MAX_BYTES);
@@ -306,6 +323,8 @@ static void push_section_header(u32 name_offset, u32 type, u64 flags, u64 addres
 }
 
 static void push_section_headers(void) {
+    section_headers_offset = bytes_size;
+
     // Null section
     // 0x20e0 to 0x2120
     push_zeros(0x40);
@@ -418,11 +437,9 @@ static void push_elf_header(void) {
     push_byte(0x40);
     push_zeros(7);
 
-    // Section header table offset
+    // Section header table offset (this value gets overwritten later)
     // 0x28 to 0x30
-    push_byte(0xe0);
-    push_byte(0x20);
-    push_zeros(6);
+    push_zeros(8);
 
     // Processor-specific flags
     // 0x30 to 0x34
@@ -649,6 +666,8 @@ static void generate_simple_so(void) {
     generate_shuffled_symbols();
 
     push_bytes();
+
+    fix_elf_header_addresses();
 
     FILE *f = fopen("foo.so", "w");
     if (!f) {

@@ -64,7 +64,10 @@ static size_t shuffled_symbols_size;
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
 
-static u64 section_headers_offset;
+static size_t dynsym_offset;
+static size_t dynstr_offset;
+static size_t dynstr_size;
+static size_t section_headers_offset;
 
 static void overwrite_address(u64 n, size_t bytes_offset) {
     for (size_t i = 0; i < 8; i++) {
@@ -173,9 +176,9 @@ static void push_dynamic_entry(u64 tag, u64 value) {
 
 static void push_dynamic() {
     push_dynamic_entry(DT_HASH, 0x120);
-    push_dynamic_entry(DT_STRTAB, 0x168);
-    push_dynamic_entry(DT_SYMTAB, 0x138);
-    push_dynamic_entry(DT_STRSZ, 5);
+    push_dynamic_entry(DT_STRTAB, dynstr_offset);
+    push_dynamic_entry(DT_SYMTAB, dynsym_offset);
+    push_dynamic_entry(DT_STRSZ, dynstr_size);
     push_dynamic_entry(DT_SYMENT, 24);
     push_dynamic_entry(DT_NULL, 0);
     push_dynamic_entry(DT_NULL, 0);
@@ -186,9 +189,15 @@ static void push_dynamic() {
 }
 
 static void push_dynstr(void) {
+    dynstr_offset = bytes_size;
+
+    // Offset 0 always has '\0'
+    dynstr_size = 1;
+
     push_byte(0);
     for (size_t i = 0; i < symbols_size; i++) {
         push_string(symbols[i]);
+        dynstr_size += strlen(symbols[i]) + 1;
     }
 }
 
@@ -335,11 +344,11 @@ static void push_section_headers(void) {
 
     // .dynsym: Dynamic linker symbol table section
     // 0x2160 to 0x21a0
-    push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, 0x138, 0x138, 0x30, 3, 1, 8, 0x18);
+    push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, dynsym_offset, dynsym_offset, 0x30, 3, 1, 8, 0x18);
 
     // .dynstr: String table section
     // 0x21a0 to 0x21e0
-    push_section_header(0x29, SHT_STRTAB, SHF_ALLOC, 0x168, 0x168, 5, 0, 0, 1, 0);
+    push_section_header(0x29, SHT_STRTAB, SHF_ALLOC, dynstr_offset, dynstr_offset, dynstr_size, 0, 0, 1, 0);
 
     // .eh_frame: Program data section
     // 0x21e0 to 0x2220
@@ -369,10 +378,13 @@ static void push_section_headers(void) {
 }
 
 static void push_dynsym(void) {
+    dynsym_offset = bytes_size;
+
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
     push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
 
     // The symbols are pushed in shuffled_symbols order
+    // The name offset starts at 1, because offset 0 always has '\0'
     push_symbol_entry(3, 0x60010, 0x2003, 0, 0, 0); // "b"
     push_symbol_entry(5, 0x60010, 0x2006, 0, 0, 0); // "c"
     push_symbol_entry(7, 0x60010, 0x2009, 0, 0, 0); // "d"
@@ -507,24 +519,24 @@ static void push_bytes() {
     // 0x40 to 0x120
     push_program_headers();
 
-    // 0x120 to 0x178
+    // 0x120 to 0x148
     push_hash();
 
-    // 0x178 to ?
+    // 0x148 to 0x1c0
     push_dynsym();
 
-    // ? to ?
+    // 0x1c0 to 0x1c9
     push_dynstr();
 
     // TODO: REMOVE!
-    // ? to ?
-    push_zeros(3); // Alignment
-    push_zeros(0x1de0);
+    // 0x1c9 to 0x1f50
+    push_zeros(5); // Alignment
+    push_zeros(0x1d82);
 
-    // ? to ?
+    // 0x1f50 to 0x2000
     push_dynamic();
 
-    // ? to ?
+    // 0x2000 to ?
     push_data();
 
     // ? to ?

@@ -54,7 +54,7 @@ typedef uint64_t u64;
 static char *symbols[MAX_SYMBOLS];
 static size_t symbols_size;
 
-static size_t symbol_name_offsets[MAX_SYMBOLS];
+static size_t symbol_name_dynstr_offsets[MAX_SYMBOLS];
 
 static u32 buckets[MAX_HASH_BUCKETS];
 
@@ -451,11 +451,10 @@ static void push_dynsym(void) {
     push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
 
     // The symbols are pushed in shuffled_symbols order
-    // The name offset is into .dynstr
     for (size_t i = 0; i < symbols_size; i++) {
         size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
-        push_symbol_entry(symbol_name_offsets[symbol_index], 0x60010, DATA_OFFSET + shuffled_symbols_offsets[i], 0, 0, 0);
+        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], 0x60010, DATA_OFFSET + shuffled_symbols_offsets[i], 0, 0, 0);
     }
 
     dynsym_size = bytes_size - dynsym_offset;
@@ -737,13 +736,13 @@ static void generate_shuffled_symbols(void) {
     }
 }
 
-static void init_symbol_name_offsets(void) {
-    size_t symbol_name_offset = 1;
+static void init_symbol_name_dynstr_offsets(void) {
+    size_t offset = 1;
 
     for (size_t i = 0; i < symbols_size; i++) {
-        symbol_name_offsets[i] = symbol_name_offset;
+        symbol_name_dynstr_offsets[i] = offset;
 
-        symbol_name_offset += strlen(symbols[i]) + 1;
+        offset += strlen(symbols[i]) + 1;
     }
 }
 
@@ -784,7 +783,7 @@ static void generate_simple_so(void) {
     // push_symbol("o");
     // push_symbol("p");
 
-    init_symbol_name_offsets();
+    init_symbol_name_dynstr_offsets();
 
     generate_shuffled_symbols();
 

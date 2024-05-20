@@ -50,20 +50,13 @@ typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-struct hash_table {
-    u32 nbucket;
-    u32 nchain;
-    u32 buckets[MAX_HASH_BUCKETS];
-    u32 chains[MAX_SYMBOLS];
-    size_t chains_size;
-};
-static struct hash_table hash_table;
-
 static char *symbols[MAX_SYMBOLS];
 static size_t symbols_size;
 
-static u32 shuffled_chains[MAX_SYMBOLS];
-static size_t shuffled_chains_size;
+static u32 buckets[MAX_HASH_BUCKETS];
+
+static u32 chains[MAX_SYMBOLS];
+static size_t chains_size;
 
 static char *shuffled_symbols[MAX_SYMBOLS];
 static size_t shuffled_symbols_size;
@@ -182,12 +175,6 @@ static void push_dynstr(void) {
     }
 }
 
-static void push_dynsym(void) {
-    // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol_entry(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
-}
-
 static u32 get_nbucket(void) {
     // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
     //
@@ -225,13 +212,13 @@ static u32 elf_hash(const char *namearg) {
     return h & 0x0fffffff;
 }
 
-static void push_hash_chain(u32 chain) {
-    if (hash_table.chains_size + 1 > MAX_SYMBOLS) {
+static void push_chain(u32 chain) {
+    if (chains_size + 1 > MAX_SYMBOLS) {
         fprintf(stderr, "error: MAX_SYMBOLS of %d was exceeded\n", MAX_SYMBOLS);
         exit(EXIT_FAILURE);
     }
 
-    hash_table.chains[hash_table.chains_size++] = chain;
+    chains[chains_size++] = chain;
 }
 
 // See https://flapenguin.me/elf-dt-hash
@@ -275,23 +262,33 @@ static void push_hash_chain(u32 chain) {
 // 15  e                 | 101             2 **               |  (13)----/
 // 16  m                 | 109             1 **               \--(14)
 static void push_hash(void) {
-    hash_table.nbucket = get_nbucket();
+    u32 nbucket = get_nbucket();
+    push_number(nbucket, 4);
 
-    hash_table.nchain = 1 + symbols_size; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
+    u32 nchain = 1 + symbols_size; // `1 + `, because index 0 is always STN_UNDEF (the value 0)
+    push_number(nchain, 4);
 
-    memset(hash_table.buckets, 0, hash_table.nbucket * sizeof(u32));
+    memset(buckets, 0, nbucket * sizeof(u32));
 
-    hash_table.chains_size = 0;
+    chains_size = 0;
 
-    push_hash_chain(0); // The first entry in the chain is always STN_UNDEF
+    push_chain(0); // The first entry in the chain is always STN_UNDEF
 
     for (size_t i = 0; i < symbols_size; i++) {
         u32 hash = elf_hash(shuffled_symbols[i]);
-        u32 bucket_index = hash % hash_table.nbucket;
+        u32 bucket_index = hash % nbucket;
 
-        push_hash_chain(hash_table.buckets[bucket_index]);
+        push_chain(buckets[bucket_index]);
 
-        hash_table.buckets[bucket_index] = i + 1;
+        buckets[bucket_index] = i + 1;
+    }
+
+    for (size_t i = 0; i < nbucket; i++) {
+        push_number(buckets[i], 4);
+    }
+
+    for (size_t i = 0; i < chains_size; i++) {
+        push_number(chains[i], 4);
     }
 }
 
@@ -308,7 +305,7 @@ static void push_section_header(u32 name_offset, u32 type, u64 flags, u64 addres
     push_number(entry_size, 8);
 }
 
-static void write_section_headers(void) {
+static void push_section_headers(void) {
     // Null section
     // 0x20e0 to 0x2120
     push_zeros(0x40);
@@ -352,24 +349,13 @@ static void write_section_headers(void) {
     push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2094, 0x4a, 0, 0, 1, 0);
 }
 
-static void write_hash(void) {
-    push_number(hash_table.nbucket, 4);
-    push_number(hash_table.nchain, 4);
-
-    for (size_t i = 0; i < hash_table.nbucket; i++) {
-        push_number(hash_table.buckets[i], 4);
-    }
-
-    for (size_t i = 0; i < hash_table.chains_size; i++) {
-        push_number(hash_table.chains[i], 4);
-    }
+static void push_dynsym(void) {
+    // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+    push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
+    push_symbol_entry(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
 }
 
-static void write_sections(void) {
-    write_hash();
-}
-
-static void write_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
+static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
     push_number(type, 4);
     push_number(flags, 4);
     push_number(offset, 8);
@@ -380,7 +366,7 @@ static void write_program_header(u32 type, u32 flags, u64 offset, u64 virtual_ad
     push_number(alignment, 8);
 }
 
-static void write_elf_header(void) {
+static void push_elf_header(void) {
     // Magic number
     // 0x0 to 0x4
     push_byte(0x7f);
@@ -473,24 +459,16 @@ static void write_elf_header(void) {
     push_byte(0);
 }
 
-static void write_bytes() {
+static void push_bytes() {
     // 0x0 to 0x40
-    write_elf_header();
+    push_elf_header();
 
     // 0x40 to 0x120
-    write_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
-    write_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
-    write_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
-    write_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
+    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
+    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
+    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
+    push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
-    // 0x120 to 0x20e0
-    write_sections();
-
-    // 0x20e0 to end
-    write_section_headers();
-}
-
-static void create_sections() {
     // 0x120 to 0x134
     push_hash();
 
@@ -519,11 +497,14 @@ static void create_sections() {
 
     // 0x2094 to 0x20e0
     push_shstrtab();
+
+    // 0x20e0 to end
+    push_section_headers();
 }
 
 static void reset(void) {
     symbols_size = 0;
-    shuffled_chains_size = 0;
+    chains_size = 0;
     shuffled_symbols_size = 0;
     bytes_size = 0;
 }
@@ -556,15 +537,6 @@ static unsigned long bfd_hash_hash(const char *string) {
     hash += len + (len << 17);
     hash ^= hash >> 2;
     return hash;
-}
-
-static void push_shuffled_chain(u32 chain) {
-    if (shuffled_chains_size + 1 > MAX_SYMBOLS) {
-        fprintf(stderr, "error: MAX_SYMBOLS of %d was exceeded\n", MAX_SYMBOLS);
-        exit(EXIT_FAILURE);
-    }
-
-    shuffled_chains[shuffled_chains_size++] = chain;
 }
 
 // See the documentation of push_hash() for how this function roughly works
@@ -612,15 +584,15 @@ static void generate_shuffled_symbols(void) {
 
     memset(buckets, 0, DEFAULT_SIZE * sizeof(u32));
 
-    shuffled_chains_size = 0;
+    chains_size = 0;
 
-    push_shuffled_chain(0); // The first entry in the chain is always STN_UNDEF
+    push_chain(0); // The first entry in the chain is always STN_UNDEF
 
     for (size_t i = 0; i < symbols_size; i++) {
         u32 hash = bfd_hash_hash(symbols[i]);
         u32 bucket_index = hash % DEFAULT_SIZE;
 
-        push_shuffled_chain(buckets[bucket_index]);
+        push_chain(buckets[bucket_index]);
 
         buckets[bucket_index] = i + 1;
     }
@@ -634,7 +606,7 @@ static void generate_shuffled_symbols(void) {
         push_shuffled_symbol(symbols[chain_index - 1]);
 
         while (true) {
-            chain_index = shuffled_chains[chain_index];
+            chain_index = chains[chain_index];
             if (chain_index == 0) {
                 break;
             }
@@ -654,6 +626,8 @@ static void push_symbol(char *symbol) {
 }
 
 static void generate_simple_so(void) {
+    reset();
+
     // TODO: Iterate the AST to push symbols
     push_symbol("a");
     push_symbol("b");
@@ -674,10 +648,7 @@ static void generate_simple_so(void) {
 
     generate_shuffled_symbols();
 
-    reset();
-
-    create_sections();
-    write_bytes();
+    push_bytes();
 
     FILE *f = fopen("foo.so", "w");
     if (!f) {

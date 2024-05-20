@@ -54,6 +54,8 @@ typedef uint64_t u64;
 static char *symbols[MAX_SYMBOLS];
 static size_t symbols_size;
 
+static size_t symbol_name_offsets[MAX_SYMBOLS];
+
 static u32 buckets[MAX_HASH_BUCKETS];
 
 static u32 chains[MAX_SYMBOLS];
@@ -152,6 +154,7 @@ static void push_strtab(void) {
     push_byte(0);
     push_string("foo.s");
     push_string("_DYNAMIC");
+
     for (size_t i = 0; i < symbols_size; i++) {
         push_string(shuffled_symbols[i]);
     }
@@ -448,14 +451,11 @@ static void push_dynsym(void) {
     push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
 
     // The symbols are pushed in shuffled_symbols order
-    // The .dynstr name offset starts at 1, because it always start with a '\0'
+    // The name offset is into .dynstr
     for (size_t i = 0; i < symbols_size; i++) {
-        push_symbol_entry(1 + shuffled_symbol_index_to_symbol_index[i], 0x60010, DATA_OFFSET + shuffled_symbols_offsets[i], 0, 0, 0);
+        size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
-        // push_symbol_entry(3, 0x60010, DATA_OFFSET + 3, 0, 0, 0); // "b"
-        // push_symbol_entry(5, 0x60010, DATA_OFFSET + 6, 0, 0, 0); // "c"
-        // push_symbol_entry(7, 0x60010, DATA_OFFSET + 9, 0, 0, 0); // "d"
-        // push_symbol_entry(1, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
+        push_symbol_entry(symbol_name_offsets[symbol_index], 0x60010, DATA_OFFSET + shuffled_symbols_offsets[i], 0, 0, 0);
     }
 
     dynsym_size = bytes_size - dynsym_offset;
@@ -716,8 +716,11 @@ static void generate_shuffled_symbols(void) {
             continue;
         }
 
+        char *symbol = symbols[chain_index - 1];
+
         shuffled_symbol_index_to_symbol_index[shuffled_symbols_size] = chain_index - 1;
-        push_shuffled_symbol(symbols[chain_index - 1]);
+
+        push_shuffled_symbol(symbol);
 
         while (true) {
             chain_index = chains[chain_index];
@@ -725,9 +728,22 @@ static void generate_shuffled_symbols(void) {
                 break;
             }
 
+            symbol = symbols[chain_index - 1];
+
             shuffled_symbol_index_to_symbol_index[shuffled_symbols_size] = chain_index - 1;
-            push_shuffled_symbol(symbols[chain_index - 1]);
+
+            push_shuffled_symbol(symbol);
         }
+    }
+}
+
+static void init_symbol_name_offsets(void) {
+    size_t symbol_name_offset = 1;
+
+    for (size_t i = 0; i < symbols_size; i++) {
+        symbol_name_offsets[i] = symbol_name_offset;
+
+        symbol_name_offset += strlen(symbols[i]) + 1;
     }
 }
 
@@ -767,6 +783,8 @@ static void generate_simple_so(void) {
     // push_symbol("n");
     // push_symbol("o");
     // push_symbol("p");
+
+    init_symbol_name_offsets();
 
     generate_shuffled_symbols();
 

@@ -262,6 +262,8 @@ static void push_dynstr(void) {
         push_string(symbols[i]);
         dynstr_size += strlen(symbols[i]) + 1;
     }
+
+    push_alignment(8);
 }
 
 static u32 get_nbucket(void) {
@@ -594,13 +596,11 @@ static void push_bytes() {
     // 0x148 to 0x1c0
     push_dynsym();
 
-    // 0x1c0 to 0x1c9
+    // 0x1c0 to 0x1d0
     push_dynstr();
 
-    // TODO: REMOVE!
-    // 0x1c9 to 0x1f50
-    push_zeros(5); // Alignment
-    push_zeros(0x1d0a);
+    // 0x1d0 to 0x1f50
+    push_zeros(0x1f50 - bytes_size);
 
     // 0x1f50 to 0x2000
     push_dynamic();

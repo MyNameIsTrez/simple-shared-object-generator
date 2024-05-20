@@ -25,6 +25,7 @@ enum p_type {
 };
 
 enum p_flags {
+    PF_X = 1, // Executable segment
     PF_W = 2, // Writable segment
     PF_R = 4, // Readable segment
 };
@@ -175,6 +176,7 @@ static void push_number(u64 n, size_t byte_count) {
     push_zeros(byte_count);
 }
 
+// TODO: If the arguments `info`, `other` and `shndx` are always 0 even with assembly fns, stop requiring passing them as args
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 static void push_symbol_entry(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
     push_number(name, 4);
@@ -197,21 +199,23 @@ static void push_symtab(void) {
 
     u32 name = 16;
 
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 3, 0, 0, 0); // "b"
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 3, 0, 0, 0);
     name += strlen("b") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 15, 0, 0, 0); // "b"
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 15, 0, 0, 0);
     name += strlen("f") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 18, 0, 0, 0); // "b"
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 18, 0, 0, 0);
     name += strlen("g") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 6, 0, 0, 0); // "c"
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 0x42, 0, 0, 0);
+    name += strlen("fn_a") + 1;
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 6, 0, 0, 0);
     name += strlen("c") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 9, 0, 0, 0); // "d"
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 9, 0, 0, 0);
     name += strlen("d") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 21, 0, 0, 0); // "b"
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 21, 0, 0, 0);
     name += strlen("h") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 0, 0, 0, 0); // "a"
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 0, 0, 0, 0);
     name += strlen("a") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 12, 0, 0, 0); // "a"
+    push_symbol_entry(name, 0x60010, DATA_OFFSET + 12, 0, 0, 0);
     name += strlen("e") + 1;
 
     symtab_size = bytes_size - symtab_offset;
@@ -385,6 +389,8 @@ static void push_hash(void) {
     }
 
     hash_size = bytes_size - start_size;
+
+    push_alignment(8);
 }
 
 static void push_section_header(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -404,45 +410,45 @@ static void push_section_headers(void) {
     section_headers_offset = bytes_size;
 
     // Null section
-    // 0x2138 to 0x2178
+    // ? to ?
     push_zeros(0x40);
 
     // .hash: Hash section
-    // 0x2178 to 0x21b8
+    // ? to ?
     push_section_header(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, hash_size, 2, 0, 8, 4);
 
     // .dynsym: Dynamic linker symbol table section
-    // 0x21b8 to 0x21f8
+    // ? to ?
     push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, dynsym_offset, dynsym_offset, dynsym_size, 3, 1, 8, 0x18);
 
     // .dynstr: String table section
-    // 0x21f8 to 0x2230
+    // ? to ?
     push_section_header(0x29, SHT_STRTAB, SHF_ALLOC, dynstr_offset, dynstr_offset, dynstr_size, 0, 0, 1, 0);
 
     // .eh_frame: Program data section
-    // 0x2230 to 0x2278
+    // ? to ?
     push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC, 0x1000, 0x1000, 0, 0, 0, 8, 0);
 
     // .dynamic: Dynamic linking information section
-    // 0x2278 to 0x22b8
+    // ? to ?
     push_section_header(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, 0x1f50, 0x1f50, 0xb0, 3, 0, 8, 0x10);
 
     // .data: Data section
-    // 0x22b8 to 0x22f8
+    // ? to ?
     push_section_header(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, DATA_OFFSET, DATA_OFFSET, data_size, 0, 0, 4, 0);
 
     // .symtab: Symbol table section
-    // 0x22f8 to 0x2338
+    // ? to ?
     // "link" of 8 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
     // "info" of 4 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
     push_section_header(1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, 8, 4, 8, 0x18);
 
     // .strtab: String table section
-    // 0x2338 to 0x2378
+    // ? to ?
     push_section_header(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, strtab_offset, strtab_size, 0, 0, 1, 0);
 
     // .shstrtab: Section header string table section
-    // 0x2378 to end
+    // ? to end
     push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, shstrtab_offset, shstrtab_size, 0, 0, 1, 0);
 }
 
@@ -475,21 +481,32 @@ static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_add
 
 static void push_program_headers(void) {
     // 0x40 to 0x78
-    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
+    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x2d4, 0x2d4, 0x1000);
 
     // TODO: Use the data from the AST
+    // TODO: `(symbols_size - 1)` is a temporary way to ignore the fn_a label
     // Note that it's possible to have data that isn't exported
-    data_size = symbols_size * sizeof("a^");
+    data_size = (symbols_size - 1) * sizeof("a^");
+
+    // Executable code
+    // 0x78 to 0xb0
+    push_program_header(PT_LOAD, PF_R | PF_X, 0x1000, 0x1000, 0x1000, 6, 6, 0x1000);
+
+    // TODO: ? segment
+    // 0xb0 to 0xe8
+    push_program_header(PT_LOAD, PF_R, 0x2000, 0x2000, 0x2000, 0, 0, 0x1000);
 
     // Program data
-    // 0x78 to 0xb0
-    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0 + data_size, 0xb0 + data_size, 0x1000);
-
-    // 0xb0 to 0xe8
-    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
-
     // 0xe8 to 0x120
-    push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
+    push_program_header(PT_LOAD, PF_R | PF_W, 0x2f50, 0x2f50, 0x2f50, 0xb0 + data_size, 0xb0 + data_size, 0x1000);
+
+    // TODO: ? segment
+    // 0x120 to 0x158
+    push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x2f50, 0x2f50, 0x2f50, 0xb0, 0xb0, 8);
+
+    // TODO: ? segment
+    // 0x158 to 0x190
+    push_program_header(0x6474e552, PF_R, 0x2f50, 0x2f50, 0x2f50, 0xb0, 0xb0, 1);
 }
 
 static void push_elf_header(void) {
@@ -564,7 +581,7 @@ static void push_elf_header(void) {
 
     // Number of program header entries
     // 0x38 to 0x3a
-    push_byte(4);
+    push_byte(6);
     push_byte(0);
 
     // Single section header entry size
@@ -574,12 +591,12 @@ static void push_elf_header(void) {
 
     // Number of section header entries
     // 0x3c to 0x3e
-    push_byte(10);
+    push_byte(11);
     push_byte(0);
 
     // Index of entry with section names
     // 0x3e to 0x40
-    push_byte(9);
+    push_byte(10);
     push_byte(0);
 }
 
@@ -587,37 +604,37 @@ static void push_bytes() {
     // 0x0 to 0x40
     push_elf_header();
 
-    // 0x40 to 0x120
+    // 0x40 to 0x190
     push_program_headers();
 
-    // 0x120 to 0x148
+    // 0x190 to 0x1d0
     push_hash();
 
-    // 0x148 to 0x1c0
+    // 0x1d0 to ?
     push_dynsym();
 
-    // 0x1c0 to 0x1d0
+    // ? to ?
     push_dynstr();
 
-    // 0x1d0 to 0x1f50
+    // ? to ?
     push_zeros(0x1f50 - bytes_size);
 
-    // 0x1f50 to 0x2000
+    // ? to ?
     push_dynamic();
 
-    // 0x2000 to 0x2010
+    // ? to ?
     push_data();
 
-    // 0x2010 to 0x20d0
+    // ? to ?
     push_symtab();
 
-    // 0x20d0 to 0x20e8
+    // ? to ?
     push_strtab();
 
-    // 0x20e8 to 0x2134
+    // ? to ?
     push_shstrtab();
 
-    // 0x2134 to end
+    // ? to end
     push_section_headers();
 }
 
@@ -774,14 +791,7 @@ static void generate_simple_so(void) {
     push_symbol("f");
     push_symbol("g");
     push_symbol("h");
-    // push_symbol("i");
-    // push_symbol("j");
-    // push_symbol("k");
-    // push_symbol("l");
-    // push_symbol("m");
-    // push_symbol("n");
-    // push_symbol("o");
-    // push_symbol("p");
+    push_symbol("fn_a");
 
     init_symbol_name_dynstr_offsets();
 

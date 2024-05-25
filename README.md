@@ -30,6 +30,17 @@ After you've played with the below commands, I recommend commenting out the firs
 
 ### generate_simple_o.c
 
+This is the ELF layout of `simple.o`:
+
+```
+0x000 to 0x040: ELF header
+0x400 to 0x180: Section headers
+0x180 to 0x190: Data
+0x190 to 0x1b1: Section names
+0x1c0 to 0x220: Symbol table
+0x220 to end  : Symbol entry names
+```
+
 1. `gcc generate_simple_o.c && ./a.out` (or `nasm -f elf64 simple.s`)
 2. `ld -shared --hash-style=sysv simple.o -o simple.so`
 3. `gcc run_simple.c && ./a.out`, which should print `a^`, coming from simple.o

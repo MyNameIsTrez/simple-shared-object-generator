@@ -25,6 +25,26 @@ typedef uint64_t u64;
 u8 bytes[MAX_BYTES_SIZE];
 size_t bytes_size = 0;
 
+enum st_binding {
+    STB_LOCAL = 0, // Local symbol
+    STB_GLOBAL = 1, // Global symbol
+};
+
+enum st_type {
+    STT_NOTYPE = 0, // The symbol type is not specified
+    STT_SECTION = 3, // This symbol is associated with a section
+    STT_FILE = 4, // 
+};
+
+enum sh_index {
+    SHN_UNDEF = 0, // An undefined section reference
+    SHN_ABS = 0xfff1, // Absolute values for the corresponding reference
+};
+
+// From "st_info" its description here:
+// https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+#define ELF32_ST_INFO(bind, type) (((bind)<<4)+((type)&0xf))
+
 static void push(u8 byte) {
     if (bytes_size + 1 > MAX_BYTES_SIZE) {
         fprintf(stderr, "MAX_BYTES_SIZE of %d was exceeded\n", MAX_BYTES_SIZE);
@@ -40,72 +60,6 @@ static void push_zeros(size_t count) {
     }
 }
 
-static void push_string(char *str) {
-    for (size_t i = 0; i < strlen(str); i++) {
-        push(str[i]);
-    }
-    push('\0');
-}
-
-static void push_symbol_entry_names() {
-    push(0);
-    push_string("simple.s");
-    push_string("a");
-    push_zeros(4);
-}
-
-// TODO: I don't know the algorithm behind this
-static void push_symbol_table() {
-    push_zeros(0x10);
-
-    push_zeros(8);
-
-    // Not sure if this is two groups of four bytes,
-    // or one group of eight bytes
-    push(1);
-    push(0);
-    push(0);
-    push(0);
-    push(4);
-    push(0);
-    push(0xf1);
-    push(0xff);
-
-    push_zeros(0x10);
-
-    push_zeros(4);
-    push(3);
-    push(0);
-    push(1);
-    push_zeros(9);
-
-    push_zeros(8);
-    push(10);
-    push(0);
-    push(0);
-    push(0);
-    push(0x10);
-    push(0);
-    push(1);
-    push(0);
-
-    push_zeros(0x10);
-}
-
-static void push_section_names() {
-    push(0);
-    push_string(".data");
-    push_string(".shstrtab");
-    push_string(".symtab");
-    push_string(".strtab");
-    push_zeros(15);
-}
-
-static void push_data() {
-    push_string("a^");
-    push_zeros(13);
-}
-
 static void push_number(u64 n, size_t byte_count) {
     while (n > 0) {
         // Little-endian requires the least significant byte first
@@ -117,6 +71,67 @@ static void push_number(u64 n, size_t byte_count) {
 
     // Optional padding
     push_zeros(byte_count);
+}
+
+static void push_string(char *str) {
+    for (size_t i = 0; i < strlen(str); i++) {
+        push(str[i]);
+    }
+    push('\0');
+}
+
+static void push_strtab() {
+    push(0);
+    push_string("simple.s");
+    push_string("a");
+    push_zeros(4);
+}
+
+// See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+// See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html#chapter6-tbl-21
+static void push_symbol(u32 name, u32 info, u32 shndx) {
+    push_number(name, 4); // Indexed into strtab
+    push_number(info, 2);
+    push_number(shndx, 4);
+
+    // TODO: I'm confused by why we don't seem to need these
+    // push_number(value, 4);
+    // push_number(size, 4);
+    // push_number(other, 4);
+
+    push_zeros(24 - 10); // .symtab its entry_size is 24
+}
+
+static void push_symtab() {
+    // Null entry
+    // 0x1c0 to 0x1d8
+    push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF);
+
+    // simple.s entry
+    // 0x1d8 to 1x1f0
+    push_symbol(1, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS);
+
+    // TODO: ? entry
+    // 1x1f0 to 0x208
+    push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_SECTION), 1);
+
+    // "a" entry
+    // 0x208 to 0x220
+    push_symbol(10, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), 1);
+}
+
+static void push_shstrtab() {
+    push(0);
+    push_string(".data");
+    push_string(".shstrtab");
+    push_string(".symtab");
+    push_string(".strtab");
+    push_zeros(15);
+}
+
+static void push_data() {
+    push_string("a^");
+    push_zeros(13);
 }
 
 static void push_section(u32 name_offset, u32 type, u64 flags, u64 address, u64 offset, u64 size, u32 link, u32 info, u64 alignment, u64 entry_size) {
@@ -137,23 +152,23 @@ static void push_section_headers() {
     // 0x40 to 0x80
     push_zeros(0x40);
 
-    // Data section
+    // .data: Data section
     // 0x80 to 0xc0
-    push_section(0x01, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, 0, 0x180, 3, 0, 0, 4, 0);
+    push_section(1, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, 0, 0x180, 3, 0, 0, 4, 0);
 
-    // Names section
+    // .shstrtab: Section header string table section
     // 0xc0 to 0x100
-    push_section(0x07, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x190, 33, 0, 0, 1, 0);
+    push_section(7, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x190, 33, 0, 0, 1, 0);
 
-    // Symbol table section
+    // .symtab: Symbol table section
     // 0x100 to 0x140
     // "link" of 4 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
     // "info" of 3 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
-    push_section(0x11, SHT_SYMTAB, 0, 0, 0x1c0, 96, 4, 3, 8, 0x18);
+    push_section(17, SHT_SYMTAB, 0, 0, 0x1c0, 96, 4, 3, 8, 24);
 
-    // Symbol entry names section
+    // .strtab: String table section
     // 0x140 to 0x180
-    push_section(0x19, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x220, 12, 0, 0, 1, 0);
+    push_section(25, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x220, 12, 0, 0, 1, 0);
 }
 
 static void push_elf_header() {
@@ -243,13 +258,13 @@ static void generate_simple_o() {
     push_data();
 
     // 0x190 to 0x1b1
-    push_section_names();
+    push_shstrtab();
 
     // 0x1c0 to 0x220
-    push_symbol_table();
+    push_symtab();
 
     // 0x220 to end
-    push_symbol_entry_names();
+    push_strtab();
 
     fwrite(bytes, sizeof(u8), bytes_size, f);
 

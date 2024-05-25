@@ -3,18 +3,18 @@
 #include <stdlib.h>
 
 void print() {
-    void *handle = dlopen("./foo.so", RTLD_NOW);
+    void *handle = dlopen("./full.so", RTLD_NOW);
     if (!handle) {
         fprintf(stderr, "dlopen: %s", dlerror());
         exit(EXIT_FAILURE);
     }
 
+    // TODO: Put this back
     // char *foo = dlsym(handle, "foo");
     // if (!foo) {
     //     fprintf(stderr, "dlsym: %s", dlerror());
     //     exit(EXIT_FAILURE);
     // }
-
     // puts(foo); // Prints "bar"
 
     int (*fn_a)(void) = dlsym(handle, "fn_a");
@@ -22,7 +22,6 @@ void print() {
         fprintf(stderr, "dlsym: %s", dlerror());
         exit(EXIT_FAILURE);
     }
-
     printf("%d\n", fn_a());
 }
 

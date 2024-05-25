@@ -153,9 +153,15 @@ static void push_strtab(void) {
     strtab_offset = bytes_size;
 
     push_byte(0);
-    push_string("foo.s");
+    push_string("full.s");
+    
+    // Global symbols
+    // TODO: Add loop
+
     push_string("_DYNAMIC");
 
+    // Local symbols
+    // TODO: Don't loop through non-global symbols
     for (size_t i = 0; i < symbols_size; i++) {
         push_string(shuffled_symbols[i]);
     }
@@ -193,9 +199,11 @@ static void push_symtab(void) {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
     // The names are in .strtab
     push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol_entry(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
+    push_symbol_entry(1, 0xfff10004, 0, 0, 0, 0); // "full.s"
     push_symbol_entry(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
     push_symbol_entry(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
+
+    // TODO: Local symbols need to come before global ones
 
     u32 name = 16;
 
@@ -462,7 +470,7 @@ static void push_dynsym(void) {
     for (size_t i = 0; i < symbols_size; i++) {
         size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
-        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], 0x60010, DATA_OFFSET + symbol_data_offsets[symbol_index], 0, 0, 0);
+        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], 0x70010, DATA_OFFSET + symbol_data_offsets[symbol_index], 0, 0, 0);
     }
 
     dynsym_size = bytes_size - dynsym_offset;
@@ -811,7 +819,7 @@ static void generate_simple_so(void) {
 
     fix_elf_header_addresses();
 
-    FILE *f = fopen("foo.so", "w");
+    FILE *f = fopen("full.so", "w");
     if (!f) {
         perror("fopen");
         exit(EXIT_FAILURE);

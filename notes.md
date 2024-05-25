@@ -1,10 +1,18 @@
-gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_full_so.c && ./a.out && xxd foo.so > mine.hex
+gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_simple_o.c && ./a.out && xxd simple.o > mine.hex
 
-nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && xxd foo.so > goal.hex
+nasm -f elf64 simple.s && xxd simple.o > goal.hex
 
-nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && readelf -a foo.so
 
-nasm -f elf64 foo.s && ld -shared --hash-style=sysv foo.o -o foo.so && gcc run_so.c && ./a.out
+
+
+
+gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_full_so.c && ./a.out && xxd full.so > mine.hex
+
+nasm -f elf64 full.s && ld -shared --hash-style=sysv full.o -o full.so && xxd full.so > goal.hex
+
+nasm -f elf64 full.s && ld -shared --hash-style=sysv full.o -o full.so && readelf -a full.so
+
+nasm -f elf64 full.s && ld -shared --hash-style=sysv full.o -o full.so && gcc run_so.c && ./a.out
 
 ```
 | line | nbucket | symbol name |

@@ -1,5 +1,5 @@
 a.out
-foo.o
-foo.so
 goal.hex
 mine.hex
+simple.o
+simple.so

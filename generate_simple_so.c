@@ -81,14 +81,14 @@ static void push_shstrtab() {
     push_string(".eh_frame");
     push_string(".dynamic");
     push_string(".data");
-    push_zeros(2);
+    push_zeros(1);
 }
 
 static void push_strtab() {
     push(0);
-    push_string("foo.s");
+    push_string("simple.s");
     push_string("_DYNAMIC");
-    push_string("foo");
+    push_string("a");
 }
 
 static void push_number(u64 n, size_t byte_count) {
@@ -119,15 +119,15 @@ static void push_symbol(u32 name, u32 value, u32 size, u32 info, u32 other, u32 
 static void push_symtab() {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
     push_symbol(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol(1, 0xfff10004, 0, 0, 0, 0); // "foo.s"
+    push_symbol(1, 0xfff10004, 0, 0, 0, 0); // "simple.s"
     push_symbol(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
-    push_symbol(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
-    push_symbol(16, 0x60010, 0x2000, 0, 0, 0); // "foo"
+    push_symbol(10, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
+    push_symbol(19, 0x60010, 0x2000, 0, 0, 0); // "a"
 }
 
 static void push_data() {
-    push_string("bar");
-    push_zeros(4);
+    push_string("a^");
+    push_zeros(5);
 }
 
 // See https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-42444.html
@@ -140,7 +140,7 @@ static void push_dynamic() {
     push_dynamic_entry(DT_HASH, 0x120);
     push_dynamic_entry(DT_STRTAB, 0x168);
     push_dynamic_entry(DT_SYMTAB, 0x138);
-    push_dynamic_entry(DT_STRSZ, 5);
+    push_dynamic_entry(DT_STRSZ, 3);
     push_dynamic_entry(DT_SYMENT, 24);
     push_dynamic_entry(DT_NULL, 0);
     push_dynamic_entry(DT_NULL, 0);
@@ -152,23 +152,24 @@ static void push_dynamic() {
 
 static void push_dynstr() {
     push(0);
-    push_string("foo");
+    push_string("a");
+    push_zeros(5); // Alignment
 }
 
 static void push_dynsym() {
     // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
     push_symbol(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol(1, 0x60010, 0x2000, 0, 0, 0); // "foo"
+    push_symbol(1, 0x60010, 0x2000, 0, 0, 0); // "a"
 }
 
 // See https://flapenguin.me/elf-dt-hash
 // See https://refspecs.linuxfoundation.org/elf/gabi4+/ch5.dynamic.html#hash
 static void push_hash() {
     push_number(1, 4); // nbucket
-    push_number(2, 4); // nchain, which is 2 because there is "<null>" and "foo" in dynsym
-    push_number(1, 4); // bucket[0] => 1, so dynsym[1] => "foo"
+    push_number(2, 4); // nchain, which is 2 because there is "<null>" and "a" in dynsym
+    push_number(1, 4); // bucket[0] => 1, so dynsym[1] => "a"
     push_number(0, 4); // chain[0] is always 0
-    push_number(0, 4); // chain[1] is 0, since if the symbol didn't match "foo", there is no possible other match
+    push_number(0, 4); // chain[1] is 0, since if the symbol didn't match "a", there is no possible other match
     push_zeros(4); // Alignment
 }
 
@@ -192,15 +193,15 @@ static void push_section_headers() {
 
     // .hash: Hash section
     // 0x2120 to 0x2160
-    push_section(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, 0x14, 2, 0, 8, 4);
+    push_section(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, 20, 2, 0, 8, 4);
 
     // .dynsym: Dynamic linker symbol table section
     // 0x2160 to 0x21a0
-    push_section(0x21, SHT_DYNSYM, SHF_ALLOC, 0x138, 0x138, 0x30, 3, 1, 8, 0x18);
+    push_section(0x21, SHT_DYNSYM, SHF_ALLOC, 0x138, 0x138, 48, 3, 1, 8, 24);
 
     // .dynstr: String table section
     // 0x21a0 to 0x21e0
-    push_section(0x29, SHT_STRTAB, SHF_ALLOC, 0x168, 0x168, 5, 0, 0, 1, 0);
+    push_section(0x29, SHT_STRTAB, SHF_ALLOC, 0x168, 0x168, 3, 0, 0, 1, 0);
 
     // .eh_frame: Program data section
     // 0x21e0 to 0x2220
@@ -208,25 +209,25 @@ static void push_section_headers() {
 
     // .dynamic: Dynamic linking information section
     // 0x2220 to 0x2260
-    push_section(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, 0x1f50, 0x1f50, 0xb0, 3, 0, 8, 0x10);
+    push_section(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, 0x1f50, 0x1f50, 176, 3, 0, 8, 16);
 
     // .data: Data section
     // 0x2260 to 0x22a0
-    push_section(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, 0x2000, 0x2000, 4, 0, 0, 4, 0);
+    push_section(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, 0x2000, 0x2000, 3, 0, 0, 4, 0);
 
     // .symtab: Symbol table section
     // 0x22a0 to 0x22e0
     // "link" of 8 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
     // "info" of 4 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
-    push_section(1, SHT_SYMTAB, 0, 0, 0x2008, 0x78, 8, 4, 8, 0x18);
+    push_section(1, SHT_SYMTAB, 0, 0, 0x2008, 120, 8, 4, 8, 24);
 
     // .strtab: String table section
     // 0x22e0 to 0x2320
-    push_section(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2080, 0x14, 0, 0, 1, 0);
+    push_section(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2080, 21, 0, 0, 1, 0);
 
     // .shstrtab: Section header string table section
     // 0x2320 to end
-    push_section(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2094, 0x4a, 0, 0, 1, 0);
+    push_section(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x2095, 74, 0, 0, 1, 0);
 }
 
 static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_address, u64 physical_address, u64 file_size, u64 mem_size, u64 alignment) {
@@ -315,7 +316,7 @@ static void push_elf_header() {
 }
 
 static void generate_simple_so() {
-    FILE *f = fopen("foo.so", "w");
+    FILE *f = fopen("simple.so", "w");
     if (!f) {
         perror("fopen");
         exit(EXIT_FAILURE);
@@ -326,7 +327,7 @@ static void generate_simple_so() {
 
     // 0x40 to 0x120
     push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x1000, 0x1000, 0x1000);
-    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb4, 0xb4, 0x1000);
+    push_program_header(PT_LOAD, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb3, 0xb3, 0x1000);
     push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 8);
     push_program_header(0x6474e552, PF_R, 0x1f50, 0x1f50, 0x1f50, 0xb0, 0xb0, 1);
 
@@ -340,8 +341,7 @@ static void generate_simple_so() {
     push_dynstr();
 
     // TODO: REMOVE!
-    // 0x16d to 0x1f50
-    push_zeros(3); // Alignment
+    // 0x170 to 0x1f50
     push_zeros(0x1de0);
 
     // 0x1f50 to 0x2000

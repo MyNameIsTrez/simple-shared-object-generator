@@ -49,9 +49,9 @@ static void push_string(char *str) {
 
 static void push_symbol_entry_names() {
     push(0);
-    push_string("foo.s");
-    push_string("foo");
-    push_zeros(5);
+    push_string("simple.s");
+    push_string("a");
+    push_zeros(4);
 }
 
 // TODO: I don't know the algorithm behind this
@@ -80,7 +80,7 @@ static void push_symbol_table() {
     push_zeros(9);
 
     push_zeros(8);
-    push(7);
+    push(10);
     push(0);
     push(0);
     push(0);
@@ -102,8 +102,8 @@ static void push_section_names() {
 }
 
 static void push_data() {
-    push_string("bar");
-    push_zeros(12);
+    push_string("a^");
+    push_zeros(13);
 }
 
 static void push_number(u64 n, size_t byte_count) {
@@ -139,21 +139,21 @@ static void push_section_headers() {
 
     // Data section
     // 0x80 to 0xc0
-    push_section(0x01, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, 0, 0x180, 4, 0, 0, 4, 0);
+    push_section(0x01, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, 0, 0x180, 3, 0, 0, 4, 0);
 
     // Names section
     // 0xc0 to 0x100
-    push_section(0x07, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x190, 0x21, 0, 0, 1, 0);
+    push_section(0x07, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x190, 33, 0, 0, 1, 0);
 
     // Symbol table section
     // 0x100 to 0x140
     // "link" of 4 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
     // "info" of 3 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
-    push_section(0x11, SHT_SYMTAB, 0, 0, 0x1c0, 0x60, 4, 3, 8, 0x18);
+    push_section(0x11, SHT_SYMTAB, 0, 0, 0x1c0, 96, 4, 3, 8, 0x18);
 
     // Symbol entry names section
     // 0x140 to 0x180
-    push_section(0x19, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x220, 0x0b, 0, 0, 1, 0);
+    push_section(0x19, SHT_PROGBITS | SHT_SYMTAB, 0, 0, 0x220, 12, 0, 0, 1, 0);
 }
 
 static void push_elf_header() {
@@ -227,7 +227,7 @@ static void push_elf_header() {
 }
 
 static void generate_simple_o() {
-    FILE *f = fopen("foo.o", "w");
+    FILE *f = fopen("simple.o", "w");
     if (!f) {
         perror("fopen");
         exit(EXIT_FAILURE);

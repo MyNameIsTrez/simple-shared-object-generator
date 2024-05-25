@@ -108,8 +108,8 @@ static void push_shstrtab() {
 static void push_strtab() {
     push(0);
     push_string("simple.s");
-    push_string("_DYNAMIC");
     push_string("a");
+    push_string("_DYNAMIC");
 }
 
 static void push_number(u64 n, size_t byte_count) {
@@ -149,17 +149,17 @@ static void push_symtab() {
     // 0x2020 to 0x2038
     push_symbol(1, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
+    // "a" entry
+    // 0x2068 to 0x2080
+    push_symbol(10, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), 6, 0x2000);
+
     // TODO: ? entry
     // 0x2038 to 0x2050
     push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
     // "_DYNAMIC" entry
     // 0x2050 to 0x2068
-    push_symbol(10, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 5, 0x1f50);
-
-    // "a" entry
-    // 0x2068 to 0x2080
-    push_symbol(19, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), 6, 0x2000);
+    push_symbol(12, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 5, 0x1f50);
 }
 
 static void push_data() {
@@ -175,9 +175,9 @@ static void push_dynamic_entry(u64 tag, u64 value) {
 
 static void push_dynamic() {
     push_dynamic_entry(DT_HASH, 0x120);
-    push_dynamic_entry(DT_STRTAB, 0x168);
-    push_dynamic_entry(DT_SYMTAB, 0x138);
-    push_dynamic_entry(DT_STRSZ, 3);
+    push_dynamic_entry(DT_STRTAB, 0x148);
+    push_dynamic_entry(DT_SYMTAB, 0x130);
+    push_dynamic_entry(DT_STRSZ, 1);
     push_dynamic_entry(DT_SYMENT, 24);
     push_dynamic_entry(DT_NULL, 0);
     push_dynamic_entry(DT_NULL, 0);
@@ -189,26 +189,22 @@ static void push_dynamic() {
 
 static void push_dynstr() {
     push(0);
-    push_string("a");
-    push_zeros(5); // Alignment
+    push_string("");
+    push_zeros(6); // Alignment
 }
 
 static void push_dynsym() {
     // Null entry
     // 0x138 to 0x150
     push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
-
-    // "a" entry
-    // 0x150 to 0x168
-    push_symbol(1, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), 6, 0x2000);
 }
 
 // See https://flapenguin.me/elf-dt-hash
 // See https://refspecs.linuxfoundation.org/elf/gabi4+/ch5.dynamic.html#hash
 static void push_hash() {
     push_number(1, 4); // nbucket
-    push_number(2, 4); // nchain, which is 2 because there is "<null>" and "a" in dynsym
-    push_number(1, 4); // bucket[0] => 1, so dynsym[1] => "a"
+    push_number(1, 4); // nchain, which is 2 because there is "<null>" and "a" in dynsym
+    push_number(0, 4); // bucket[0] => 1, so dynsym[1] => "a"
     push_number(0, 4); // chain[0] is always 0
     push_number(0, 4); // chain[1] is 0, since if the symbol didn't match "a", there is no possible other match
     push_zeros(4); // Alignment
@@ -234,15 +230,15 @@ static void push_section_headers() {
 
     // .hash: Hash section
     // 0x2120 to 0x2160
-    push_section(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, 20, 2, 0, 8, 4);
+    push_section(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, 16, 2, 0, 8, 4);
 
     // .dynsym: Dynamic linker symbol table section
     // 0x2160 to 0x21a0
-    push_section(0x21, SHT_DYNSYM, SHF_ALLOC, 0x138, 0x138, 48, 3, 1, 8, 24);
+    push_section(0x21, SHT_DYNSYM, SHF_ALLOC, 0x130, 0x130, 24, 3, 1, 8, 24);
 
     // .dynstr: String table section
     // 0x21a0 to 0x21e0
-    push_section(0x29, SHT_STRTAB, SHF_ALLOC, 0x168, 0x168, 3, 0, 0, 1, 0);
+    push_section(0x29, SHT_STRTAB, SHF_ALLOC, 0x148, 0x148, 1, 0, 0, 1, 0);
 
     // .eh_frame: Program data section
     // 0x21e0 to 0x2220
@@ -260,7 +256,7 @@ static void push_section_headers() {
     // 0x22a0 to 0x22e0
     // The "link" of 8 is the section header index of the associated string table, so .strtab
     // The "info" of 4 is the symbol table index of the first non-local symbol, which is the 5th entry in push_symtab(), the global "a" symbol
-    push_section(1, SHT_SYMTAB, 0, 0, 0x2008, 120, 8, 4, 8, 24);
+    push_section(1, SHT_SYMTAB, 0, 0, 0x2008, 120, 8, 5, 8, 24);
 
     // .strtab: String table section
     // 0x22e0 to 0x2320
@@ -383,7 +379,7 @@ static void generate_simple_so() {
 
     // TODO: REMOVE!
     // 0x170 to 0x1f50
-    push_zeros(0x1de0);
+    push_zeros(0x1df8);
 
     // 0x1f50 to 0x2000
     push_dynamic();

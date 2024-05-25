@@ -10,12 +10,12 @@ void print() {
     }
 
     // TODO: Put this back
-    // char *foo = dlsym(handle, "foo");
-    // if (!foo) {
+    // char *a = dlsym(handle, "a");
+    // if (!a) {
     //     fprintf(stderr, "dlsym: %s", dlerror());
     //     exit(EXIT_FAILURE);
     // }
-    // puts(foo); // Prints "bar"
+    // puts(a); // Prints "a^"
 
     int (*fn_a)(void) = dlsym(handle, "fn_a");
     if (!fn_a) {

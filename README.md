@@ -4,9 +4,9 @@ Writing your own linker from scratch is a daunting endeavor. This repository aim
 
 This repository contains three tiny C programs:
 
-1. `generate_simple_o.c` generates `simple.o`
-2. `generate_simple_so.c` generates `simple.so`
-3. `generate_full_so.c` generates `full.so`
+1. `generate_simple_o.c`, which generates `simple.o`
+2. `generate_simple_so.c`, which generates `simple.so`
+3. `generate_full_so.c`, which generates `full.so`
 
 The two `simple` programs generate a `.o` and `.so` based off of `simple.s`, which exports a global `a` string containing the text `a^`:
 

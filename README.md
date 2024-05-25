@@ -38,7 +38,7 @@ This is the ELF layout of `simple.o`:
 0x180 to 0x190: Data (.data)
 0x190 to 0x1b1: Section names (.shstrtab)
 0x1c0 to 0x220: Symbol info (.symtab)
-0x220 to end  : Symbol names (.strtab)
+0x220 to  end : Symbol names (.strtab)
 ```
 
 1. `gcc generate_simple_o.c && ./a.out` (or `nasm -f elf64 simple.s`)

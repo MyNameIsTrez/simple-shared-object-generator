@@ -18,6 +18,7 @@ enum sh_flags {
 };
 
 typedef uint8_t u8;
+typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
@@ -33,7 +34,7 @@ enum st_binding {
 enum st_type {
     STT_NOTYPE = 0, // The symbol type is not specified
     STT_SECTION = 3, // This symbol is associated with a section
-    STT_FILE = 4, // 
+    STT_FILE = 4, // This symbol is associated with a file
 };
 
 enum sh_index {
@@ -89,17 +90,17 @@ static void push_strtab() {
 
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 // See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html#chapter6-tbl-21
-static void push_symbol(u32 name, u32 info, u32 shndx) {
+static void push_symbol(u32 name, u16 info, u16 shndx) {
     push_number(name, 4); // Indexed into .strtab, because .symtab its "link" points to it
     push_number(info, 2);
-    push_number(shndx, 4);
+    push_number(shndx, 2);
 
     // TODO: I'm confused by why we don't seem to need these
     // push_number(value, 4);
     // push_number(size, 4);
     // push_number(other, 4);
 
-    push_zeros(24 - 10); // .symtab its entry_size is 24
+    push_zeros(24 - 8); // .symtab its entry_size is 24
 }
 
 static void push_symtab() {
@@ -107,7 +108,7 @@ static void push_symtab() {
     // 0x1c0 to 0x1d8
     push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF);
 
-    // simple.s entry
+    // "simple.s" entry
     // 0x1d8 to 1x1f0
     push_symbol(1, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS);
 
@@ -163,7 +164,7 @@ static void push_section_headers() {
     // .symtab: Symbol table section
     // 0x100 to 0x140
     // The "link" of 4 is the section header index of the associated string table, so .strtab
-    // The "info" of 3 is the symbol table index of the first non-local symbol, which is the 3rd entry in push_symtab(), the global "a" symbol
+    // The "info" of 3 is the symbol table index of the first non-local symbol, which is the 4th entry in push_symtab(), the global "a" symbol
     push_section(17, SHT_SYMTAB, 0, 0, 0x1c0, 96, 4, 3, 8, 24);
 
     // .strtab: String table section

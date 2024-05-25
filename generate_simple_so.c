@@ -41,12 +41,33 @@ enum e_type {
 };
 
 typedef uint8_t u8;
+typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
 #define MAX_BYTES_SIZE 420420
 u8 bytes[MAX_BYTES_SIZE];
 size_t bytes_size = 0;
+
+enum st_binding {
+    STB_LOCAL = 0, // Local symbol
+    STB_GLOBAL = 1, // Global symbol
+};
+
+enum st_type {
+    STT_NOTYPE = 0, // The symbol type is not specified
+    STT_OBJECT = 1, // This symbol is associated with a data object
+    STT_FILE = 4, // This symbol is associated with a file
+};
+
+enum sh_index {
+    SHN_UNDEF = 0, // An undefined section reference
+    SHN_ABS = 0xfff1, // Absolute values for the corresponding reference
+};
+
+// From "st_info" its description here:
+// https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+#define ELF32_ST_INFO(bind, type) (((bind)<<4)+((type)&0xf))
 
 static void push(u8 byte) {
     if (bytes_size + 1 > MAX_BYTES_SIZE) {
@@ -105,24 +126,40 @@ static void push_number(u64 n, size_t byte_count) {
 }
 
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-// We specified the .symtab section to have an entry_size of 0x18 bytes
-// TODO: I am pretty sure the third "size" argument here is actually "offset", seeing the spots we're calling this?
-static void push_symbol(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
-    push_number(name, 4);
-    push_number(value, 4);
-    push_number(size, 4);
-    push_number(info, 4);
-    push_number(other, 4);
-    push_number(shndx, 4);
+// See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html#chapter6-tbl-21
+static void push_symbol(u32 name, u16 info, u16 shndx, u32 value) {
+    push_number(name, 4); // Indexed into .strtab, because .symtab its "link" points to it
+    push_number(info, 2);
+    push_number(shndx, 2);
+    push_number(value, 4); // In executable and shared object files, st_value holds a virtual address
+
+    // TODO: I'm confused by why we don't seem to need these
+    // push_number(size, 4);
+    // push_number(other, 4);
+
+    push_zeros(24 - 12); // .symtab its entry_size is 24
 }
 
 static void push_symtab() {
-    // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    push_symbol(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol(1, 0xfff10004, 0, 0, 0, 0); // "simple.s"
-    push_symbol(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
-    push_symbol(10, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
-    push_symbol(19, 0x60010, 0x2000, 0, 0, 0); // "a"
+    // Null entry
+    // 0x2008 to 0x2020
+    push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
+
+    // "simple.s" entry
+    // 0x2020 to 0x2038
+    push_symbol(1, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
+
+    // TODO: ? entry
+    // 0x2038 to 0x2050
+    push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
+
+    // "_DYNAMIC" entry
+    // 0x2050 to 0x2068
+    push_symbol(10, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 5, 0x1f50);
+
+    // "a" entry
+    // 0x2068 to 0x2080
+    push_symbol(19, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), 6, 0x2000);
 }
 
 static void push_data() {
@@ -157,9 +194,11 @@ static void push_dynstr() {
 }
 
 static void push_dynsym() {
-    // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    push_symbol(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol(1, 0x60010, 0x2000, 0, 0, 0); // "a"
+    // Null entry
+    push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
+
+    // "a" entry
+    push_symbol(1, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), 6, 0x2000);
 }
 
 // See https://flapenguin.me/elf-dt-hash
@@ -217,8 +256,8 @@ static void push_section_headers() {
 
     // .symtab: Symbol table section
     // 0x22a0 to 0x22e0
-    // "link" of 8 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
-    // "info" of 4 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
+    // The "link" of 8 is the section header index of the associated string table, so .strtab
+    // The "info" of 4 is the symbol table index of the first non-local symbol, which is the 5th entry in push_symtab(), the global "a" symbol
     push_section(1, SHT_SYMTAB, 0, 0, 0x2008, 120, 8, 4, 8, 24);
 
     // .strtab: String table section

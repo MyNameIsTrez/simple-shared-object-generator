@@ -40,15 +40,6 @@ enum e_type {
     ET_DYN = 3, // Shared object
 };
 
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-#define MAX_BYTES_SIZE 420420
-u8 bytes[MAX_BYTES_SIZE];
-size_t bytes_size = 0;
-
 enum st_binding {
     STB_LOCAL = 0, // Local symbol
     STB_GLOBAL = 1, // Global symbol
@@ -64,6 +55,15 @@ enum sh_index {
     SHN_UNDEF = 0, // An undefined section reference
     SHN_ABS = 0xfff1, // Absolute values for the corresponding reference
 };
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+#define MAX_BYTES_SIZE 420420
+u8 bytes[MAX_BYTES_SIZE];
+size_t bytes_size = 0;
 
 // From "st_info" its description here:
 // https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html

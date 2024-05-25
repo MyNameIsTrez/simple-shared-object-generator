@@ -1,4 +1,6 @@
 a.out
+full.o
+full.so
 goal.hex
 mine.hex
 simple.o

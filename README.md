@@ -24,7 +24,7 @@ The `full` program generates a `.so` based off of `full.s`, which exports severa
 
 ## Running
 
-`simple.s` and `full.s` not only serve as documentation, but also as tests. The "Verifying correctness" headers found below use [nasm](https://en.wikipedia.org/wiki/Netwide_Assembler) to compile the `.s` into a `.o`, and ld in order to link that into a `.so`. If our program's result differs from nasm+ld's result, it always means the test failed, and our program needs to be edited.
+`simple.s` and `full.s` not only serve as documentation, but also as tests. The "Verifying correctness" headers found below use [nasm](https://en.wikipedia.org/wiki/Netwide_Assembler) to compile the `.s` into a `.o`, and ld in order to link that into a `.so`. If the command prints anything, it always means our program failed the test. Any printed output shows which bytes were wrong.
 
 After you've played with the below commands, I recommend commenting out the first line of `simple.s` that exports the string, to see whether you can fix `generate_simple_o.c` so that it passes its test again. Once you've got that working, you can try the same on `full.s` with `generate_full_so.c`. After that, you can move on to testing more significant changes to `full.s`.
 
@@ -36,9 +36,11 @@ After you've played with the below commands, I recommend commenting out the firs
 
 #### Verifying correctness
 
-1. `gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_simple_o.c && ./a.out && xxd simple.o > mine.hex`
-2. `nasm -f elf64 simple.s && xxd simple.o > goal.hex`
-3. `diff mine.hex goal.hex` shows no output if the generated `simple.o` is correct
+```bash
+gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_simple_o.c && ./a.out && xxd simple.o > mine.hex && \
+nasm -f elf64 simple.s && xxd simple.o > goal.hex && \
+diff mine.hex goal.hex
+```
 
 ### generate_simple_so.c
 
@@ -47,9 +49,11 @@ After you've played with the below commands, I recommend commenting out the firs
 
 #### Verifying correctness
 
-1. `gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_simple_so.c && ./a.out && xxd simple.so > mine.hex`
-2. `nasm -f elf64 simple.s && ld -shared --hash-style=sysv simple.o -o simple.so && xxd simple.so > goal.hex`
-3. `diff mine.hex goal.hex` shows no output if the generated `simple.so` is correct
+```bash
+gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_simple_so.c && ./a.out && xxd simple.so > mine.hex && \
+nasm -f elf64 simple.s && ld -shared --hash-style=sysv simple.o -o simple.so && xxd simple.so > goal.hex && \
+diff mine.hex goal.hex
+```
 
 ### generate_full_so.c
 
@@ -58,6 +62,8 @@ After you've played with the below commands, I recommend commenting out the firs
 
 #### Verifying correctness
 
-1. `gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_full_so.c && ./a.out && xxd full.so > mine.hex`
-2. `nasm -f elf64 full.s && ld -shared --hash-style=sysv full.o -o full.so && xxd full.so > goal.hex`
-3. `diff mine.hex goal.hex` shows no output if the generated `full.so` is correct
+```bash
+gcc -Wall -Wextra -Wpedantic -Werror -Wfatal-errors -g generate_full_so.c && ./a.out && xxd full.so > mine.hex && \
+nasm -f elf64 full.s && ld -shared --hash-style=sysv full.o -o full.so && xxd full.so > goal.hex && \
+diff mine.hex goal.hex
+```

@@ -8,7 +8,7 @@ This repository contains three tiny C programs:
 2. `generate_simple_so.c`, which generates `simple.so`
 3. `generate_full_so.c`, which generates `full.so`
 
-The two `simple` programs generate a `.o` and `.so` based off of `simple.s`, which exports a `a` string containing the text `a^`:
+The two `simple` programs generate a `.o` and `.so` based off of `simple.s`, which exports an `a` string containing the text `a^`:
 
 ```nasm
 global a

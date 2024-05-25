@@ -195,9 +195,11 @@ static void push_dynstr() {
 
 static void push_dynsym() {
     // Null entry
+    // 0x138 to 0x150
     push_symbol(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
 
     // "a" entry
+    // 0x150 to 0x168
     push_symbol(1, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), 6, 0x2000);
 }
 

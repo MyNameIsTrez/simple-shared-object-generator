@@ -11,10 +11,12 @@ This repository contains three tiny C programs:
 The two `simple` programs generate a `.o` and `.so` based off of `simple.s`, which exports an `a` string containing the text `a^`:
 
 ```nasm
-global a
+global a ; Exports the symbol "a"
 
-section .data
+section .data ; The default section is ".text", which is for code, not data
 
+; Defines the symbol "a", containing the null-terminated data 'a', '^', '\0'
+; (db stands for Define Byte)
 a: db "a^", 0
 ```
 

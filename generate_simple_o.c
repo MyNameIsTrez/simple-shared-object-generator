@@ -90,7 +90,7 @@ static void push_strtab() {
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 // See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html#chapter6-tbl-21
 static void push_symbol(u32 name, u32 info, u32 shndx) {
-    push_number(name, 4); // Indexed into strtab
+    push_number(name, 4); // Indexed into .strtab, because .symtab its "link" points to it
     push_number(info, 2);
     push_number(shndx, 4);
 
@@ -162,8 +162,8 @@ static void push_section_headers() {
 
     // .symtab: Symbol table section
     // 0x100 to 0x140
-    // "link" of 4 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
-    // "info" of 3 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
+    // The "link" of 4 is the section header index of the associated string table, so .strtab
+    // The "info" of 3 is the symbol table index of the first non-local symbol, which is the 3rd entry in push_symtab(), the global "a" symbol
     push_section(17, SHT_SYMTAB, 0, 0, 0x1c0, 96, 4, 3, 8, 24);
 
     // .strtab: String table section

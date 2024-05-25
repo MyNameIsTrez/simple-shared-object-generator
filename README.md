@@ -22,7 +22,7 @@ The `full` program generates a `.so` based off of `full.s`, which exports severa
 
 ## Running
 
-`simple.s` and `full.s` not only serve as documentation, but also tests. The below "Verifying correctness" headers use [nasm](https://en.wikipedia.org/wiki/Netwide_Assembler) to compile the `.s` into a `.o`, and `ld` in order to link that into a `.so`. If our program's result differs from nasm+ld's result, it always means the test failed, and our program needs to be edited.
+`simple.s` and `full.s` not only serve as documentation, but also as tests. The "Verifying correctness" headers found below use [nasm](https://en.wikipedia.org/wiki/Netwide_Assembler) to compile the `.s` into a `.o`, and `ld` in order to link that into a `.so`. If our program's result differs from nasm+ld's result, it always means the test failed, and our program needs to be edited.
 
 If you're trying to learn the ELF format, I recommend slightly modifying `full.s`, and seeing whether you can fix `generate_full_so.c` in order to have the test still pass.
 

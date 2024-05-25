@@ -34,7 +34,7 @@ This is the ELF layout of `simple.o`:
 
 ```
 0x000 to 0x040: ELF header
-0x400 to 0x180: Section headers
+0x040 to 0x180: Section headers
 0x180 to 0x190: Data
 0x190 to 0x1b1: Section names
 0x1c0 to 0x220: Symbol table

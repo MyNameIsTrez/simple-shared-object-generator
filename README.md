@@ -26,7 +26,7 @@ The `full` program generates a `.so` based off of `full.s`, which exports severa
 
 `simple.s` and `full.s` not only serve as documentation, but also as tests. The "Verifying correctness" headers found below use [nasm](https://en.wikipedia.org/wiki/Netwide_Assembler) to compile the `.s` into a `.o`, and ld in order to link that into a `.so`. If our program's result differs from nasm+ld's result, it always means the test failed, and our program needs to be edited.
 
-If you're trying to learn the ELF format, I recommend slightly modifying `full.s`, and seeing whether you can fix `generate_full_so.c` so that it passes the test again.
+If you're trying to learn the ELF format, I recommend starting by commenting out the first line of `simple.s` that exports the string, and seeing whether you can fix `generate_simple_o.c` so that it passes its test again. Once you've got that working, you can try the same on `full.s` with `generate_full_so.c`.
 
 ### generate_simple_o.c
 

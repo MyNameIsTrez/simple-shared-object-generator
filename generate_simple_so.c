@@ -61,13 +61,13 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-#define MAX_BYTES_SIZE 420420
-u8 bytes[MAX_BYTES_SIZE];
-size_t bytes_size = 0;
-
 // From "st_info" its description here:
 // https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 #define ELF32_ST_INFO(bind, type) (((bind)<<4)+((type)&0xf))
+
+#define MAX_BYTES_SIZE 420420
+u8 bytes[MAX_BYTES_SIZE];
+size_t bytes_size = 0;
 
 static void push(u8 byte) {
     if (bytes_size + 1 > MAX_BYTES_SIZE) {

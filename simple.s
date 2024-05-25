@@ -1,4 +1,4 @@
-; global a ; Exports the symbol "a"
+global a ; Exports the symbol "a"
 
 section .data ; The default section is ".text", which is for code, not data
 

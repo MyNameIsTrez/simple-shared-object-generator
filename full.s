@@ -5,15 +5,9 @@ global d
 global e
 global f
 global g
-; global h
+global h
 global fn1_c
 global fn2_c
-
-section .text
-
-fn1_c:
-	mov rax, 42
-	ret
 
 section .data
 
@@ -27,6 +21,10 @@ g: db "g^", 0
 h: db "h^", 0
 
 section .text
+
+fn1_c:
+	mov rax, 42
+	ret
 
 fn2_c:
 	mov rax, 42

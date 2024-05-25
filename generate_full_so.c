@@ -8,7 +8,7 @@
 #define MAX_SYMBOLS 420420
 
 #define MAX_HASH_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
-#define DATA_OFFSET 0x2000 // Probably needs to be able to grow when there's lots of code in the file
+#define DATA_OFFSET 0x3000 // Probably needs to be able to grow when there's lots of code in the file
 
 enum d_type {
     DT_NULL = 0, // Marks the end of the _DYNAMIC array
@@ -48,9 +48,30 @@ enum e_type {
     ET_DYN = 3, // Shared object
 };
 
+enum st_binding {
+    STB_LOCAL = 0, // Local symbol
+    STB_GLOBAL = 1, // Global symbol
+};
+
+enum st_type {
+    STT_NOTYPE = 0, // The symbol type is not specified
+    STT_OBJECT = 1, // This symbol is associated with a data object
+    STT_FILE = 4, // This symbol is associated with a file
+};
+
+enum sh_index {
+    SHN_UNDEF = 0, // An undefined section reference
+    SHN_ABS = 0xfff1, // Absolute values for the corresponding reference
+};
+
 typedef uint8_t u8;
+typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
+
+// From "st_info" its description here:
+// https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+#define ELF32_ST_INFO(bind, type) (((bind)<<4)+((type)&0xf))
 
 static char *symbols[MAX_SYMBOLS];
 static size_t symbols_size;
@@ -182,48 +203,80 @@ static void push_number(u64 n, size_t byte_count) {
     push_zeros(byte_count);
 }
 
-// TODO: If the arguments `info`, `other` and `shndx` are always 0 even with assembly fns, stop requiring passing them as args
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-static void push_symbol_entry(u32 name, u32 value, u32 size, u32 info, u32 other, u32 shndx) {
-    push_number(name, 4);
-    push_number(value, 4);
-    push_number(size, 4);
-    push_number(info, 4);
-    push_number(other, 4);
-    push_number(shndx, 4);
+// See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html#chapter6-tbl-21
+static void push_symbol_entry(u32 name, u16 info, u16 shndx, u32 value) {
+    push_number(name, 4); // Indexed into .strtab, because .symtab its "link" points to it
+    push_number(info, 2);
+    push_number(shndx, 2);
+    push_number(value, 4); // In executable and shared object files, st_value holds a virtual address
+
+    // TODO: I'm confused by why we don't seem to need these
+    // push_number(size, 4);
+    // push_number(other, 4);
+
+    push_zeros(24 - 12); // .symtab its entry_size is 24
 }
 
 static void push_symtab(void) {
     symtab_offset = bytes_size;
 
-    // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    // The names are in .strtab
-    push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
-    push_symbol_entry(1, 0xfff10004, 0, 0, 0, 0); // "full.s"
-    push_symbol_entry(0, 0xfff10004, 0, 0, 0, 0); // "<null>"
-    push_symbol_entry(7, 0x50001, 0x1f50, 0, 0, 0); // "_DYNAMIC"
+    // Null entry
+    // ? to ?
+    push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
 
-    // TODO: Local symbols need to come before global ones
+    // "full.s" entry
+    // ? to ?
+    push_symbol_entry(1, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
-    u32 name = 16;
+    // TODO: ? entry
+    // ? to ?
+    push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 3, 0, 0, 0);
+    // "_DYNAMIC" entry
+    // ? to ?
+    push_symbol_entry(10, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 5, 0);
+
+    u32 name = sizeof("full.s") + sizeof("_DYNAMIC");
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 3, 0);
     name += strlen("b") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 15, 0, 0, 0);
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 15, 0);
     name += strlen("f") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 18, 0, 0, 0);
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 18, 0);
     name += strlen("g") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 0x42, 0, 0, 0);
-    name += strlen("fn_a") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 6, 0, 0, 0);
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 66, 0);
+    name += strlen("fn1_c") + 1;
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 66, 0);
+    name += strlen("fn2_c") + 1;
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 6, 0);
     name += strlen("c") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 9, 0, 0, 0);
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 9, 0);
     name += strlen("d") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 21, 0, 0, 0);
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 21, 0);
     name += strlen("h") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 0, 0, 0, 0);
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 0, 0);
     name += strlen("a") + 1;
-    push_symbol_entry(name, 0x60010, DATA_OFFSET + 12, 0, 0, 0);
+
+    // ? to ?
+    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 12, 0);
     name += strlen("e") + 1;
 
     symtab_size = bytes_size - symtab_offset;
@@ -447,8 +500,8 @@ static void push_section_headers(void) {
 
     // .symtab: Symbol table section
     // ? to ?
-    // "link" of 8 is the section header index of the associated string table; see https://blog.k3170makan.com/2018/09/introduction-to-elf-file-format-part.html
-    // "info" of 4 is one greater than the symbol table index of the last local symbol (binding STB_LOCAL)
+    // The "link" of 8 is the section header index of the associated string table, so .strtab
+    // The "info" of 4 is the symbol table index of the first non-local symbol, which is the 5th entry in push_symtab(), the global "g" symbol
     push_section_header(1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, 8, 4, 8, 0x18);
 
     // .strtab: String table section
@@ -463,14 +516,15 @@ static void push_section_headers(void) {
 static void push_dynsym(void) {
     dynsym_offset = bytes_size;
 
-    // TODO: Some of these can be turned into enums using https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-    push_symbol_entry(0, 0, 0, 0, 0, 0); // "<null>"
+    // Null entry
+    // ? to ?
+    push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
 
     // The symbols are pushed in shuffled_symbols order
     for (size_t i = 0; i < symbols_size; i++) {
         size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
-        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], 0x70010, DATA_OFFSET + symbol_data_offsets[symbol_index], 0, 0, 0);
+        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), 7, DATA_OFFSET + symbol_data_offsets[symbol_index]);
     }
 
     dynsym_size = bytes_size - dynsym_offset;
@@ -489,16 +543,16 @@ static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_add
 
 static void push_program_headers(void) {
     // 0x40 to 0x78
-    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x2d4, 0x2d4, 0x1000);
+    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x2f3, 0x2f3, 0x1000);
 
     // TODO: Use the data from the AST
-    // TODO: `(symbols_size - 1)` is a temporary way to ignore the fn_a label
+    // TODO: `(symbols_size - 2)` is a temporary way to ignore the fn1_c and fn2_c labels
     // Note that it's possible to have data that isn't exported
-    data_size = (symbols_size - 1) * sizeof("a^");
+    data_size = (symbols_size - 2) * sizeof("a^");
 
     // Executable code
     // 0x78 to 0xb0
-    push_program_header(PT_LOAD, PF_R | PF_X, 0x1000, 0x1000, 0x1000, 6, 6, 0x1000);
+    push_program_header(PT_LOAD, PF_R | PF_X, 0x1000, 0x1000, 0x1000, 12, 12, 0x1000);
 
     // TODO: ? segment
     // 0xb0 to 0xe8
@@ -799,7 +853,8 @@ static void generate_simple_so(void) {
     push_symbol("f");
     push_symbol("g");
     push_symbol("h");
-    push_symbol("fn_a");
+    push_symbol("fn1_c");
+    push_symbol("fn2_c");
 
     init_symbol_name_dynstr_offsets();
 

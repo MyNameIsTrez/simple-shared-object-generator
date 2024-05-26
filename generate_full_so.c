@@ -24,6 +24,7 @@
 
 #define EH_FRAME_SECTION_HEADER_INDEX 4
 #define SYMTAB_SECTION_HEADER_INDEX 7
+#define STRTAB_SECTION_HEADER_INDEX 9
 
 // From "st_info" its description here:
 // https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
@@ -61,6 +62,7 @@ enum sh_type {
 enum sh_flags {
     SHF_WRITE = 1, // Writable
     SHF_ALLOC = 2, // Occupies memory during execution
+    SHF_EXECINSTR = 4, // Executable machine instructions
 };
 
 enum e_type {
@@ -111,6 +113,7 @@ static size_t code_offsets[MAX_SYMBOLS];
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
 
+static size_t text_size;
 static size_t data_size;
 static size_t hash_offset;
 static size_t hash_size;
@@ -180,6 +183,7 @@ static void push_shstrtab(void) {
     push_string(".hash");
     push_string(".dynsym");
     push_string(".dynstr");
+    push_string(".text");
     push_string(".eh_frame");
     push_string(".dynamic");
     push_string(".data");
@@ -514,45 +518,49 @@ static void push_section_headers(void) {
     section_headers_offset = bytes_size;
 
     // Null section
-    // TODO: ? to TODO: ?
+    // 0x31e8 to 0x3228
     push_zeros(0x40);
 
     // .hash: Hash section
-    // TODO: ? to TODO: ?
-    push_section_header(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, hash_size, 2, 0, 8, 4);
+    // 0x3228 to 0x3268
+    push_section_header(0x1b, SHT_HASH, SHF_ALLOC, hash_offset, hash_offset, hash_size, 2, 0, 8, 4);
 
     // .dynsym: Dynamic linker symbol table section
-    // TODO: ? to TODO: ?
+    // 0x3268 to 0x32a8
     push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, dynsym_offset, dynsym_offset, dynsym_size, 3, 1, 8, 0x18);
 
     // .dynstr: String table section
-    // TODO: ? to TODO: ?
+    // 0x32a8 to 0x32e8
     push_section_header(0x29, SHT_STRTAB, SHF_ALLOC, dynstr_offset, dynstr_offset, dynstr_size, 0, 0, 1, 0);
 
-    // .eh_frame: Code section
-    // TODO: ? to TODO: ?
-    push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC, EH_FRAME_OFFSET, EH_FRAME_OFFSET, 0, 0, 0, 8, 0);
+    // .text: Code section
+    // 0x32e8 to 0x3328
+    push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC | SHF_EXECINSTR, TEXT_OFFSET, TEXT_OFFSET, text_size, 0, 0, 16, 0);
+
+    // .eh_frame: Exception stack unwinding section
+    // 0x3328 to 0x3368
+    push_section_header(0x37, SHT_PROGBITS, SHF_ALLOC, EH_FRAME_OFFSET, EH_FRAME_OFFSET, 0, 0, 0, 8, 0);
 
     // .dynamic: Dynamic linking information section
-    // TODO: ? to TODO: ?
-    push_section_header(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, DYNAMIC_OFFSET, DYNAMIC_OFFSET, 0xb0, 3, 0, 8, 0x10);
+    // 0x3368 to 0x33a8
+    push_section_header(0x41, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, DYNAMIC_OFFSET, DYNAMIC_OFFSET, 0xb0, 3, 0, 8, 0x10);
 
     // .data: Data section
-    // TODO: ? to TODO: ?
-    push_section_header(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, DATA_OFFSET, DATA_OFFSET, data_size, 0, 0, 4, 0);
+    // 0x33a8 to 0x33e8
+    push_section_header(0x4a, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, DATA_OFFSET, DATA_OFFSET, data_size, 0, 0, 4, 0);
 
     // .symtab: Symbol table section
-    // TODO: ? to TODO: ?
-    // The "link" of 8 is the section header index of the associated string table, so .strtab
-    // The "info" of 4 is the symbol table index of the first non-local symbol, which is the 5th entry in push_symtab(), the global "g" symbol
-    push_section_header(1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, 8, 4, 8, SYMTAB_ENTRY_SIZE);
+    // 0x33e8 to 0x3428
+    // The "link" is the section header index of the associated string table
+    // The "info" of 4 is the symbol table index of the first non-local symbol, which is the 5th entry in push_symtab(), the global "b" symbol
+    push_section_header(0x1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, STRTAB_SECTION_HEADER_INDEX, 4, 8, SYMTAB_ENTRY_SIZE);
 
     // .strtab: String table section
-    // TODO: ? to TODO: ?
+    // 0x3428 to 0x3468
     push_section_header(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, strtab_offset, strtab_size, 0, 0, 1, 0);
 
     // .shstrtab: Section header string table section
-    // TODO: ? to end
+    // 0x3468 to end
     push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, shstrtab_offset, shstrtab_size, 0, 0, 1, 0);
 }
 
@@ -743,13 +751,13 @@ static void push_bytes() {
     // 0x3018 to 0x3168
     push_symtab();
 
-    // 0x3168 to TODO: ?
+    // 0x3168 to 0x3193
     push_strtab();
 
-    // TODO: ? to TODO: ?
+    // 0x3193 to 0x31e8
     push_shstrtab();
 
-    // TODO: ? to end
+    // 0x31e8 to end
     push_section_headers();
 }
 
@@ -999,6 +1007,9 @@ static void generate_simple_so(void) {
     push_symbol("h");
     push_symbol("fn1_c");
     push_symbol("fn2_c");
+
+    // TODO: Let this be gotten with push_text() calls
+    text_size = 12;
 
     init_symbol_name_dynstr_offsets();
 

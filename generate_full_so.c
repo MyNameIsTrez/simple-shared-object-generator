@@ -17,6 +17,14 @@
 
 #define SYMTAB_ENTRY_SIZE 24
 
+// The array element specifies the location and size of a segment
+// which may be made read-only after relocations have been processed
+// From https://refspecs.linuxfoundation.org/LSB_5.0.0/LSB-Core-generic/LSB-Core-generic/progheader.html
+#define PT_GNU_RELRO 0x6474e552
+
+#define EH_FRAME_SECTION_HEADER_INDEX 4
+#define SYMTAB_SECTION_HEADER_INDEX 7
+
 // From "st_info" its description here:
 // https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 #define ELF32_ST_INFO(bind, type) (((bind)<<4)+((type)&0xf))
@@ -237,62 +245,62 @@ static void push_symtab(void) {
     symtab_offset = bytes_size;
 
     // Null entry
-    // TODO: ? to TODO: ?
+    // 0x3018 to 0x3030
     push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
 
     // "full.s" entry
-    // TODO: ? to TODO: ?
+    // 0x3030 to 0x3048
     push_symbol_entry(1, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
     // TODO: ? entry
-    // TODO: ? to TODO: ?
+    // 0x3048 to 0x3060
     push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
     // "_DYNAMIC" entry
-    // TODO: ? to TODO: ?
-    push_symbol_entry(10, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 5, 0);
+    // 0x3060 to 0x3078
+    push_symbol_entry(8, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 6, DYNAMIC_OFFSET);
 
-    u32 name = sizeof("full.s") + sizeof("_DYNAMIC");
+    // TODO: Stop having the name indices and offsets hardcoded here
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 3, 0);
-    name += strlen("b") + 1;
+    // "b"
+    // 0x3078 to 0x3090
+    push_symbol_entry(17, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 3);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 15, 0);
-    name += strlen("f") + 1;
+    // "f"
+    // 0x3090 to 0x30a8
+    push_symbol_entry(19, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 15);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 18, 0);
-    name += strlen("g") + 1;
+    // "g"
+    // 0x30a8 to 0x30c0
+    push_symbol_entry(21, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 18);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 66, 0);
-    name += strlen("fn1_c") + 1;
+    // "c"
+    // 0x30c0 to 0x30d8
+    push_symbol_entry(37, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 6);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 66, 0);
-    name += strlen("fn2_c") + 1;
+    // "fn2_c"
+    // 0x30d8 to 0x30f0
+    push_symbol_entry(23, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), EH_FRAME_SECTION_HEADER_INDEX, TEXT_OFFSET + 6);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 6, 0);
-    name += strlen("c") + 1;
+    // "d"
+    // 0x30f0 to 0x3108
+    push_symbol_entry(29, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 9);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 9, 0);
-    name += strlen("d") + 1;
+    // "h"
+    // 0x3108 to 0x3120
+    push_symbol_entry(31, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 21);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 21, 0);
-    name += strlen("h") + 1;
+    // "fn1_c"
+    // 0x3120 to 0x3138
+    push_symbol_entry(33, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), EH_FRAME_SECTION_HEADER_INDEX, TEXT_OFFSET + 0);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 0, 0);
-    name += strlen("a") + 1;
+    // "a"
+    // 0x3138 to 0x3150
+    push_symbol_entry(39, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 0);
 
-    // TODO: ? to TODO: ?
-    push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 12, 0);
-    name += strlen("e") + 1;
+    // "e"
+    // 0x3150 to 0x3168
+    push_symbol_entry(41, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 12);
 
     symtab_size = bytes_size - symtab_offset;
 }
@@ -560,7 +568,7 @@ static void push_dynsym(void) {
         size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
         bool is_data = symbol_index < 8; // TODO: Use the data symbol count from the AST
-        u16 shndx = is_data ? 7 : 4; // 7 is .symtab, 4 is .eh_frame
+        u16 shndx = is_data ? SYMTAB_SECTION_HEADER_INDEX : EH_FRAME_SECTION_HEADER_INDEX;
         u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : TEXT_OFFSET + code_offsets[symbol_index - 8]; // TODO: Use the data symbol count from the AST
 
         push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), shndx, offset);
@@ -607,7 +615,7 @@ static void push_program_headers(void) {
 
     // TODO: ? segment
     // 0x158 to 0x190
-    push_program_header(0x6474e552, PF_R, 0x2f50, 0x2f50, 0x2f50, 0xb0, 0xb0, 1);
+    push_program_header(PT_GNU_RELRO, PF_R, 0x2f50, 0x2f50, 0x2f50, 0xb0, 0xb0, 1);
 }
 
 static void push_elf_header(void) {
@@ -726,16 +734,16 @@ static void push_bytes() {
     // 0x1010 to 0x2f50
     push_zeros(DYNAMIC_OFFSET - bytes_size);
 
-    // 0x2f50 to TODO: ?
+    // 0x2f50 to 0x3000
     push_dynamic();
 
-    // 0x2000 to TODO: ?
+    // 0x3000 to 0x3018
     push_data();
 
-    // TODO: ? to TODO: ?
+    // 0x3018 to 0x3168
     push_symtab();
 
-    // TODO: ? to TODO: ?
+    // 0x3168 to TODO: ?
     push_strtab();
 
     // TODO: ? to TODO: ?

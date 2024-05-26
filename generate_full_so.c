@@ -79,6 +79,8 @@ typedef uint64_t u64;
 static char *symbols[MAX_SYMBOLS];
 static size_t symbols_size;
 
+static bool is_substrs[MAX_SYMBOLS];
+
 static size_t symbol_name_dynstr_offsets[MAX_SYMBOLS];
 
 static u32 buckets[MAX_HASH_BUCKETS];
@@ -328,8 +330,10 @@ static void push_dynstr(void) {
 
     push_byte(0);
     for (size_t i = 0; i < symbols_size; i++) {
-        push_string(symbols[i]);
-        dynstr_size += strlen(symbols[i]) + 1;
+        if (!is_substrs[i]) {
+            push_string(symbols[i]);
+            dynstr_size += strlen(symbols[i]) + 1;
+        }
     }
 
     push_alignment(8);
@@ -882,6 +886,8 @@ static void init_symbol_name_dynstr_offsets(void) {
 
     memset(parent_indices, -1, symbols_size * sizeof(size_t));
 
+    memset(is_substrs, false, symbols_size * sizeof(bool));
+
     // This function could be optimized from O(n^2) to O(n) with a hash map
     for (size_t i = 0; i < symbols_size; i++) {
         char *symbol = symbols[i];
@@ -898,14 +904,17 @@ static void init_symbol_name_dynstr_offsets(void) {
         }
 
         // If symbol wasn't in the end of another symbol
-        if (parent_index == symbols_size) {
-            symbol_name_dynstr_offsets[i] = offset;
+        bool is_substr = parent_index != symbols_size;
 
-            offset += strlen(symbol) + 1;
-        } else {
+        if (is_substr) {
             parent_indices[i] = parent_index;
             substr_offsets[i] = ending_index;
+        } else {
+            symbol_name_dynstr_offsets[i] = offset;
+            offset += strlen(symbol) + 1;
         }
+
+        is_substrs[i] = is_substr;
     }
 
     // Now that all the parents have been given final offsets in .dynstr,

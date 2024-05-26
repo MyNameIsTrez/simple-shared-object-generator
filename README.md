@@ -37,12 +37,12 @@ After you've played with the below commands, I recommend commenting out the firs
 This is the ELF layout of the generated `simple.o`:
 
 ```
-0x000 to 0x040: ELF header
-0x040 to 0x180: Section header table
-0x180 to 0x190: Data (.data)
-0x190 to 0x1b1: Section names (.shstrtab)
-0x1c0 to 0x220: Symbol info (.symtab)
-0x220 to  end : Symbol names (.strtab)
+0x000: ELF header
+0x040: Section header table
+0x180: Data (.data)
+0x190: Section names (.shstrtab)
+0x1c0: Symbol info (.symtab)
+0x220: Symbol names (.strtab)
 ```
 
 #### Verifying correctness
@@ -58,6 +58,22 @@ diff mine.hex goal.hex
 1. `gcc generate_simple_so.c && ./a.out`
 2. `gcc run_simple.c && ./a.out`, which should print `a^`, coming from simple.so
 
+This is the ELF layout of the generated `simple.so`:
+
+```
+0x0000: ELF header
+0x0040: Program headers
+0x0120: Hash (.hash)
+0x0120: Dynamic symbols (.dynsym)
+0x0168: Dynamic strings (.dynstr)
+0x0168: Dynamic info (.dynamic)
+0x2000: Data (.data)
+0x2008: Symbol info (.symtab)
+0x2080: Symbol names (.strtab)
+0x2094: Section names (.shstrtab)
+0x20e0: Section header table
+```
+
 #### Verifying correctness
 
 ```bash
@@ -70,6 +86,23 @@ diff mine.hex goal.hex
 
 1. `gcc generate_full_so.c && ./a.out`
 2. `gcc run_full.c && ./a.out`, which should print `a^` and `42`, coming from full.so
+
+This is the ELF layout of the generated `full.so`:
+
+```
+0x0000: ELF header
+0x0040: Program headers
+0x0190: Hash (.hash)
+0x01d0: Dynamic symbols (.dynsym)
+0x02d8: Dynamic strings (.dynstr)
+0x1000: Machine code (.text)
+0x2f50: Dynamic info (.dynamic)
+0x3000: Data (.data)
+0x3018: Symbol info (.symtab)
+0x3168: Symbol names (.strtab)
+0x3193: Section names (.shstrtab)
+0x31e8: Section header table
+```
 
 #### Verifying correctness
 

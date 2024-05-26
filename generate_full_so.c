@@ -8,7 +8,10 @@
 #define MAX_SYMBOLS 420420
 
 #define MAX_HASH_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
-#define DATA_OFFSET 0x3000 // Probably needs to be able to grow when there's lots of code in the file
+
+// TODO: These need to be able to grow
+#define CODE_OFFSET 0x1000
+#define DATA_OFFSET 0x3000
 
 enum d_type {
     DT_NULL = 0, // Marks the end of the _DYNAMIC array
@@ -88,7 +91,8 @@ static size_t shuffled_symbols_size;
 
 static size_t shuffled_symbol_index_to_symbol_index[MAX_SYMBOLS];
 
-static size_t symbol_data_offsets[MAX_SYMBOLS];
+static size_t data_offsets[MAX_SYMBOLS];
+static size_t code_offsets[MAX_SYMBOLS];
 
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
@@ -205,11 +209,11 @@ static void push_number(u64 n, size_t byte_count) {
 
 // See https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
 // See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html#chapter6-tbl-21
-static void push_symbol_entry(u32 name, u16 info, u16 shndx, u32 value) {
+static void push_symbol_entry(u32 name, u16 info, u16 shndx, u32 offset) {
     push_number(name, 4); // Indexed into .strtab, because .symtab its "link" points to it
     push_number(info, 2);
     push_number(shndx, 2);
-    push_number(value, 4); // In executable and shared object files, st_value holds a virtual address
+    push_number(offset, 4); // In executable and shared object files, st_value holds a virtual address
 
     // TODO: I'm confused by why we don't seem to need these
     // push_number(size, 4);
@@ -222,60 +226,60 @@ static void push_symtab(void) {
     symtab_offset = bytes_size;
 
     // Null entry
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
 
     // "full.s" entry
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(1, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
     // TODO: ? entry
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
     // "_DYNAMIC" entry
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(10, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 5, 0);
 
     u32 name = sizeof("full.s") + sizeof("_DYNAMIC");
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 3, 0);
     name += strlen("b") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 15, 0);
     name += strlen("f") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 18, 0);
     name += strlen("g") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 66, 0);
     name += strlen("fn1_c") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 66, 0);
     name += strlen("fn2_c") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 6, 0);
     name += strlen("c") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 9, 0);
     name += strlen("d") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 21, 0);
     name += strlen("h") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 0, 0);
     name += strlen("a") + 1;
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symbol_entry(name, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), DATA_OFFSET + 12, 0);
     name += strlen("e") + 1;
 
@@ -471,45 +475,45 @@ static void push_section_headers(void) {
     section_headers_offset = bytes_size;
 
     // Null section
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_zeros(0x40);
 
     // .hash: Hash section
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_section_header(0x1b, SHT_HASH, SHF_ALLOC, 0x120, 0x120, hash_size, 2, 0, 8, 4);
 
     // .dynsym: Dynamic linker symbol table section
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, dynsym_offset, dynsym_offset, dynsym_size, 3, 1, 8, 0x18);
 
     // .dynstr: String table section
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_section_header(0x29, SHT_STRTAB, SHF_ALLOC, dynstr_offset, dynstr_offset, dynstr_size, 0, 0, 1, 0);
 
-    // .eh_frame: Program data section
-    // ? to ?
-    push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC, 0x1000, 0x1000, 0, 0, 0, 8, 0);
+    // .eh_frame: Code section
+    // TODO: ? to TODO: ?
+    push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC, CODE_OFFSET, CODE_OFFSET, 0, 0, 0, 8, 0);
 
     // .dynamic: Dynamic linking information section
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_section_header(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, 0x1f50, 0x1f50, 0xb0, 3, 0, 8, 0x10);
 
     // .data: Data section
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_section_header(0x44, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, DATA_OFFSET, DATA_OFFSET, data_size, 0, 0, 4, 0);
 
     // .symtab: Symbol table section
-    // ? to ?
+    // TODO: ? to TODO: ?
     // The "link" of 8 is the section header index of the associated string table, so .strtab
     // The "info" of 4 is the symbol table index of the first non-local symbol, which is the 5th entry in push_symtab(), the global "g" symbol
     push_section_header(1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, 8, 4, 8, 0x18);
 
     // .strtab: String table section
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_section_header(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, strtab_offset, strtab_size, 0, 0, 1, 0);
 
     // .shstrtab: Section header string table section
-    // ? to end
+    // TODO: ? to end
     push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, shstrtab_offset, shstrtab_size, 0, 0, 1, 0);
 }
 
@@ -517,14 +521,18 @@ static void push_dynsym(void) {
     dynsym_offset = bytes_size;
 
     // Null entry
-    // ? to ?
+    // 0x1d0 to 0x1e8
     push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
 
     // The symbols are pushed in shuffled_symbols order
     for (size_t i = 0; i < symbols_size; i++) {
         size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
-        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), 7, DATA_OFFSET + symbol_data_offsets[symbol_index]);
+        bool is_data = symbol_index < 8; // TODO: Use the data symbol count from the AST
+        u16 shndx = is_data ? 7 : 4; // 7 is .symtab, 4 is .eh_frame
+        u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : CODE_OFFSET + code_offsets[symbol_index - 8]; // TODO: Use the data symbol count from the AST
+
+        push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), shndx, offset);
     }
 
     dynsym_size = bytes_size - dynsym_offset;
@@ -550,9 +558,9 @@ static void push_program_headers(void) {
     // Note that it's possible to have data that isn't exported
     data_size = (symbols_size - 2) * sizeof("a^");
 
-    // Executable code
+    // Code segment
     // 0x78 to 0xb0
-    push_program_header(PT_LOAD, PF_R | PF_X, 0x1000, 0x1000, 0x1000, 12, 12, 0x1000);
+    push_program_header(PT_LOAD, PF_R | PF_X, CODE_OFFSET, CODE_OFFSET, CODE_OFFSET, 12, 12, 0x1000);
 
     // TODO: ? segment
     // 0xb0 to 0xe8
@@ -672,32 +680,46 @@ static void push_bytes() {
     // 0x190 to 0x1d0
     push_hash();
 
-    // 0x1d0 to ?
+    // 0x1d0 to 0x2d8
     push_dynsym();
 
-    // ? to ?
+    // 0x2d8 to TODO: ?
     push_dynstr();
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_zeros(0x1f50 - bytes_size);
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_dynamic();
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_data();
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_symtab();
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_strtab();
 
-    // ? to ?
+    // TODO: ? to TODO: ?
     push_shstrtab();
 
-    // ? to end
+    // TODO: ? to end
     push_section_headers();
+}
+
+static void init_code_offsets(void) {
+    // TODO: Use the data from the AST
+    for (size_t i = 0; i < 2; i++) {
+        code_offsets[i] = i * 6; // fn1_c takes 6 bytes of instructions
+    }
+}
+
+static void init_data_offsets(void) {
+    // TODO: Use the data from the AST
+    for (size_t i = 0; i < 8; i++) {
+        data_offsets[i] = i * sizeof("a^");
+    }
 }
 
 static void push_shuffled_symbol(char *shuffled_symbol) {
@@ -815,13 +837,85 @@ static void generate_shuffled_symbols(void) {
     }
 }
 
+// haystack="a" , needle="a" => returns 0
+// haystack="ab", needle="b" => returns 1
+// haystack="a" , needle="b" => returns -1
+// haystack="a" , needle="ab" => returns -1
+static size_t get_ending_index(char *haystack, char *needle) {
+  // Go to the end of the haystack and the needle
+  char *hp = haystack;
+  while (*hp) {
+    hp++;
+  }
+  char *np = needle;
+  while (*np) {
+    np++;
+  }
+
+  // If the needle is longer than the haystack, it can't fit
+  if (np - needle > hp - haystack) {
+    return -1;
+  }
+
+  while (true) {
+    // If one of the characters doesn't match
+    if (*hp != *np) {
+      return -1;
+    }
+
+    // If the needle entirely fits into the end of the haystack,
+    // return the index where needle starts in haystack
+    if (np == needle) {
+      return hp - haystack; 
+    }
+
+    hp--;
+    np--;
+  }
+}
+
 static void init_symbol_name_dynstr_offsets(void) {
     size_t offset = 1;
 
-    for (size_t i = 0; i < symbols_size; i++) {
-        symbol_name_dynstr_offsets[i] = offset;
+    static size_t parent_indices[MAX_SYMBOLS];
+    static size_t substr_offsets[MAX_SYMBOLS];
 
-        offset += strlen(symbols[i]) + 1;
+    memset(parent_indices, -1, symbols_size * sizeof(size_t));
+
+    // This function could be optimized from O(n^2) to O(n) with a hash map
+    for (size_t i = 0; i < symbols_size; i++) {
+        char *symbol = symbols[i];
+
+        size_t parent_index;
+        size_t ending_index;
+        for (parent_index = 0; parent_index < symbols_size; parent_index++) {
+            if (i != parent_index) {
+                ending_index = get_ending_index(symbols[parent_index], symbol);
+                if (ending_index != (size_t)-1) {
+                    break;
+                }
+            }
+        }
+
+        // If symbol wasn't in the end of another symbol
+        if (parent_index == symbols_size) {
+            symbol_name_dynstr_offsets[i] = offset;
+
+            offset += strlen(symbol) + 1;
+        } else {
+            parent_indices[i] = parent_index;
+            substr_offsets[i] = ending_index;
+        }
+    }
+
+    // Now that all the parents have been given final offsets in .dynstr,
+    // the symbols that are substrings of them know where they go inside them
+    for (size_t i = 0; i < symbols_size; i++) {
+        size_t parent_index = parent_indices[i];
+        if (parent_index != (size_t)-1) {
+            size_t parent_offset = symbol_name_dynstr_offsets[parent_index];
+            symbol_name_dynstr_offsets[i] = parent_offset + substr_offsets[i];
+        }
     }
 }
 
@@ -860,15 +954,8 @@ static void generate_simple_so(void) {
 
     generate_shuffled_symbols();
 
-    // TODO: Use the global symbol data from the AST
-    symbol_data_offsets[0] = 0; // a
-    symbol_data_offsets[1] = 3; // b
-    symbol_data_offsets[2] = 6; // c
-    symbol_data_offsets[3] = 9; // d
-    symbol_data_offsets[4] = 12; // e
-    symbol_data_offsets[5] = 15; // f
-    symbol_data_offsets[6] = 18; // g
-    symbol_data_offsets[7] = 21; // h
+    init_data_offsets();
+    init_code_offsets();
 
     push_bytes();
 

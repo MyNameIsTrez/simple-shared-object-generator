@@ -11,6 +11,7 @@
 
 // TODO: These need to be able to grow
 #define CODE_OFFSET 0x1000
+#define DYNAMIC_OFFSET 0x1f50
 #define DATA_OFFSET 0x3000
 
 enum d_type {
@@ -322,6 +323,24 @@ static void push_dynamic() {
     push_dynamic_entry(DT_NULL, 0);
 }
 
+static void push_code(void) {
+    // TODO: Use the code from the AST
+    push_byte(0xb8);
+    push_byte(0x2a);
+    push_byte(0);
+    push_byte(0);
+    push_byte(0);
+    push_byte(0xc3);
+    push_byte(0xb8);
+    push_byte(0x2a);
+    push_byte(0);
+    push_byte(0);
+    push_byte(0);
+    push_byte(0xc3);
+
+    push_alignment(8);
+}
+
 static void push_dynstr(void) {
     dynstr_offset = bytes_size;
 
@@ -500,7 +519,7 @@ static void push_section_headers(void) {
 
     // .dynamic: Dynamic linking information section
     // TODO: ? to TODO: ?
-    push_section_header(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, 0x1f50, 0x1f50, 0xb0, 3, 0, 8, 0x10);
+    push_section_header(0x3b, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, DYNAMIC_OFFSET, DYNAMIC_OFFSET, 0xb0, 3, 0, 8, 0x10);
 
     // .data: Data section
     // TODO: ? to TODO: ?
@@ -687,13 +706,19 @@ static void push_bytes() {
     // 0x1d0 to 0x2d8
     push_dynsym();
 
-    // 0x2d8 to TODO: ?
+    // 0x2d8 to 0x2f8
     push_dynstr();
 
-    // TODO: ? to TODO: ?
-    push_zeros(0x1f50 - bytes_size);
+    // 0x2f8 to 0x1000
+    push_zeros(CODE_OFFSET - bytes_size);
 
-    // TODO: ? to TODO: ?
+    // 0x1000 to 0x1010
+    push_code();
+
+    // 0x1010 to 0x1f50
+    push_zeros(DYNAMIC_OFFSET - bytes_size);
+
+    // 0x1f50 to TODO: ?
     push_dynamic();
 
     // TODO: ? to TODO: ?

@@ -10,9 +10,16 @@
 #define MAX_HASH_BUCKETS 32771 // From https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elflink.c;h=6db6a9c0b4702c66d73edba87294e2a59ffafcf5;hb=refs/heads/master#l6560
 
 // TODO: These need to be able to grow
-#define CODE_OFFSET 0x1000
-#define DYNAMIC_OFFSET 0x1f50
+#define TEXT_OFFSET 0x1000
+#define EH_FRAME_OFFSET 0x2000
+#define DYNAMIC_OFFSET 0x2f50
 #define DATA_OFFSET 0x3000
+
+#define SYMTAB_ENTRY_SIZE 24
+
+// From "st_info" its description here:
+// https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
+#define ELF32_ST_INFO(bind, type) (((bind)<<4)+((type)&0xf))
 
 enum d_type {
     DT_NULL = 0, // Marks the end of the _DYNAMIC array
@@ -73,10 +80,6 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-// From "st_info" its description here:
-// https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-79797/index.html
-#define ELF32_ST_INFO(bind, type) (((bind)<<4)+((type)&0xf))
-
 static char *symbols[MAX_SYMBOLS];
 static size_t symbols_size;
 
@@ -101,6 +104,7 @@ static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
 
 static size_t data_size;
+static size_t hash_offset;
 static size_t hash_size;
 static size_t dynsym_offset;
 static size_t dynsym_size;
@@ -191,7 +195,11 @@ static void push_strtab(void) {
     // Local symbols
     // TODO: Don't loop through non-global symbols
     for (size_t i = 0; i < symbols_size; i++) {
-        push_string(shuffled_symbols[i]);
+        size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
+
+        if (!is_substrs[symbol_index]) {
+            push_string(shuffled_symbols[i]);
+        }
     }
 
     strtab_size = bytes_size - strtab_offset;
@@ -222,7 +230,7 @@ static void push_symbol_entry(u32 name, u16 info, u16 shndx, u32 offset) {
     // push_number(size, 4);
     // push_number(other, 4);
 
-    push_zeros(24 - 12); // .symtab its entry_size is 24
+    push_zeros(SYMTAB_ENTRY_SIZE - 12);
 }
 
 static void push_symtab(void) {
@@ -310,11 +318,11 @@ static void push_dynamic_entry(u64 tag, u64 value) {
 }
 
 static void push_dynamic() {
-    push_dynamic_entry(DT_HASH, 0x120);
+    push_dynamic_entry(DT_HASH, hash_offset);
     push_dynamic_entry(DT_STRTAB, dynstr_offset);
     push_dynamic_entry(DT_SYMTAB, dynsym_offset);
     push_dynamic_entry(DT_STRSZ, dynstr_size);
-    push_dynamic_entry(DT_SYMENT, 24);
+    push_dynamic_entry(DT_SYMENT, SYMTAB_ENTRY_SIZE);
     push_dynamic_entry(DT_NULL, 0);
     push_dynamic_entry(DT_NULL, 0);
     push_dynamic_entry(DT_NULL, 0);
@@ -323,7 +331,7 @@ static void push_dynamic() {
     push_dynamic_entry(DT_NULL, 0);
 }
 
-static void push_code(void) {
+static void push_text(void) {
     // TODO: Use the code from the AST
     push_byte(0xb8);
     push_byte(0x2a);
@@ -445,7 +453,7 @@ static void push_chain(u32 chain) {
 // 15  e                 | 101             2 **               |  (13)----/
 // 16  m                 | 109             1 **               \--(14)
 static void push_hash(void) {
-    size_t start_size = bytes_size;
+    hash_offset = bytes_size;
 
     u32 nbucket = get_nbucket();
     push_number(nbucket, 4);
@@ -476,7 +484,7 @@ static void push_hash(void) {
         push_number(chains[i], 4);
     }
 
-    hash_size = bytes_size - start_size;
+    hash_size = bytes_size - hash_offset;
 
     push_alignment(8);
 }
@@ -515,7 +523,7 @@ static void push_section_headers(void) {
 
     // .eh_frame: Code section
     // TODO: ? to TODO: ?
-    push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC, CODE_OFFSET, CODE_OFFSET, 0, 0, 0, 8, 0);
+    push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC, EH_FRAME_OFFSET, EH_FRAME_OFFSET, 0, 0, 0, 8, 0);
 
     // .dynamic: Dynamic linking information section
     // TODO: ? to TODO: ?
@@ -529,7 +537,7 @@ static void push_section_headers(void) {
     // TODO: ? to TODO: ?
     // The "link" of 8 is the section header index of the associated string table, so .strtab
     // The "info" of 4 is the symbol table index of the first non-local symbol, which is the 5th entry in push_symtab(), the global "g" symbol
-    push_section_header(1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, 8, 4, 8, 0x18);
+    push_section_header(1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, 8, 4, 8, SYMTAB_ENTRY_SIZE);
 
     // .strtab: String table section
     // TODO: ? to TODO: ?
@@ -553,7 +561,7 @@ static void push_dynsym(void) {
 
         bool is_data = symbol_index < 8; // TODO: Use the data symbol count from the AST
         u16 shndx = is_data ? 7 : 4; // 7 is .symtab, 4 is .eh_frame
-        u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : CODE_OFFSET + code_offsets[symbol_index - 8]; // TODO: Use the data symbol count from the AST
+        u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : TEXT_OFFSET + code_offsets[symbol_index - 8]; // TODO: Use the data symbol count from the AST
 
         push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), shndx, offset);
     }
@@ -581,13 +589,13 @@ static void push_program_headers(void) {
     // Note that it's possible to have data that isn't exported
     data_size = (symbols_size - 2) * sizeof("a^");
 
-    // Code segment
+    // .text segment
     // 0x78 to 0xb0
-    push_program_header(PT_LOAD, PF_R | PF_X, CODE_OFFSET, CODE_OFFSET, CODE_OFFSET, 12, 12, 0x1000);
+    push_program_header(PT_LOAD, PF_R | PF_X, TEXT_OFFSET, TEXT_OFFSET, TEXT_OFFSET, 12, 12, 0x1000);
 
     // TODO: ? segment
     // 0xb0 to 0xe8
-    push_program_header(PT_LOAD, PF_R, 0x2000, 0x2000, 0x2000, 0, 0, 0x1000);
+    push_program_header(PT_LOAD, PF_R, EH_FRAME_OFFSET, EH_FRAME_OFFSET, EH_FRAME_OFFSET, 0, 0, 0x1000);
 
     // Program data
     // 0xe8 to 0x120
@@ -710,18 +718,18 @@ static void push_bytes() {
     push_dynstr();
 
     // 0x2f8 to 0x1000
-    push_zeros(CODE_OFFSET - bytes_size);
+    push_zeros(TEXT_OFFSET - bytes_size);
 
     // 0x1000 to 0x1010
-    push_code();
+    push_text();
 
-    // 0x1010 to 0x1f50
+    // 0x1010 to 0x2f50
     push_zeros(DYNAMIC_OFFSET - bytes_size);
 
-    // 0x1f50 to TODO: ?
+    // 0x2f50 to TODO: ?
     push_dynamic();
 
-    // TODO: ? to TODO: ?
+    // 0x2000 to TODO: ?
     push_data();
 
     // TODO: ? to TODO: ?

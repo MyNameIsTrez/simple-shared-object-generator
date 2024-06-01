@@ -121,6 +121,7 @@ static size_t dynsym_offset;
 static size_t dynsym_size;
 static size_t dynstr_offset;
 static size_t dynstr_size;
+static size_t segment_0_size;
 static size_t symtab_offset;
 static size_t symtab_size;
 static size_t strtab_offset;
@@ -138,10 +139,15 @@ static void overwrite_address(u64 n, size_t bytes_offset) {
     }
 }
 
-static void fix_elf_header_addresses() {
-    // Section header table offset
-    // 0x28 to 0x30
+static void fix_bytes() {
+    // ELF section header table offset
     overwrite_address(section_headers_offset, 0x28);
+
+    // Segment 0 its file_size
+    overwrite_address(segment_0_size, 0x60);
+
+    // Segment 0 its mem_size
+    overwrite_address(segment_0_size, 0x68);
 }
 
 static void push_byte(u8 byte) {
@@ -375,6 +381,8 @@ static void push_dynstr(void) {
         }
     }
 
+    segment_0_size = bytes_size;
+
     push_alignment(8);
 }
 
@@ -597,8 +605,10 @@ static void push_program_header(u32 type, u32 flags, u64 offset, u64 virtual_add
 }
 
 static void push_program_headers(void) {
+    // .hash, .dynsym, .dynstr segment
     // 0x40 to 0x78
-    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0x2f3, 0x2f3, 0x1000);
+    // file_size and mem_size get overwritten later
+    push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0, 0, 0x1000);
 
     // TODO: Use the data from the AST
     // TODO: `(symbols_size - 2)` is a temporary way to ignore the fn1_c and fn2_c labels
@@ -609,19 +619,19 @@ static void push_program_headers(void) {
     // 0x78 to 0xb0
     push_program_header(PT_LOAD, PF_R | PF_X, TEXT_OFFSET, TEXT_OFFSET, TEXT_OFFSET, 12, 12, 0x1000);
 
-    // TODO: ? segment
+    // .eh_frame segment
     // 0xb0 to 0xe8
     push_program_header(PT_LOAD, PF_R, EH_FRAME_OFFSET, EH_FRAME_OFFSET, EH_FRAME_OFFSET, 0, 0, 0x1000);
 
-    // Program data
+    // .dynamic, .data
     // 0xe8 to 0x120
     push_program_header(PT_LOAD, PF_R | PF_W, 0x2f50, 0x2f50, 0x2f50, 0xb0 + data_size, 0xb0 + data_size, 0x1000);
 
-    // TODO: ? segment
+    // .dynamic segment
     // 0x120 to 0x158
     push_program_header(PT_DYNAMIC, PF_R | PF_W, 0x2f50, 0x2f50, 0x2f50, 0xb0, 0xb0, 8);
 
-    // TODO: ? segment
+    // .dynamic segment
     // 0x158 to 0x190
     push_program_header(PT_GNU_RELRO, PF_R, 0x2f50, 0x2f50, 0x2f50, 0xb0, 0xb0, 1);
 }
@@ -1020,7 +1030,7 @@ static void generate_simple_so(void) {
 
     push_bytes();
 
-    fix_elf_header_addresses();
+    fix_bytes();
 
     FILE *f = fopen("full.so", "w");
     if (!f) {

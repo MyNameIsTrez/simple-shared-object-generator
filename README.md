@@ -85,7 +85,7 @@ diff mine.hex goal.hex
 ### generate_full_so.c
 
 1. `gcc generate_full_so.c && ./a.out`
-2. `gcc run_full.c && ./a.out`, which should print `a^` and `42`, coming from full.so
+2. `gcc run_full.c && ./a.out`, which should print `a^`, `42`, `1337`, and `69`, coming from full.so
 
 This is the ELF layout of the generated `full.so`:
 

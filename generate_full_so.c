@@ -1007,6 +1007,7 @@ static void generate_simple_so(void) {
     reset();
 
     // TODO: Use the symbols from the AST
+    // push_symbol("define");
     push_symbol("a");
     push_symbol("b");
     push_symbol("c");
@@ -1015,6 +1016,8 @@ static void generate_simple_so(void) {
     push_symbol("f");
     push_symbol("g");
     push_symbol("h");
+    push_symbol("x");
+    push_symbol("y");
     push_symbol("fn1_c");
     push_symbol("fn2_c");
 

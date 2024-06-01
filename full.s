@@ -1,3 +1,5 @@
+; global define
+
 global a
 global b
 global c
@@ -6,10 +8,24 @@ global e
 global f
 global g
 global h
+
 global fn1_c
 global fn2_c
 
 section .data
+
+; ; Declare an entity struct
+; struc entity
+; 	.a: resw 1 ; 2 bytes
+; 	.b: resb 1 ; 1 byte
+; endstruc
+
+; ; Define a global entity called 'define'
+; define:
+; 	istruc entity
+; 		at entity.a, dw 1337
+; 		at entity.b, db 69
+; 	iend
 
 a: db "a^", 0
 b: db "b^", 0
@@ -20,19 +36,8 @@ f: db "f^", 0
 g: db "g^", 0
 h: db "h^", 0
 
-; Declare an entity struct
-struc entity
-	.a: resw 1 ; 2 bytes
-	.b: resb 1 ; 1 byte
-endstruc
-
-; Define a global entity called 'define'
-global define
-define:
-	istruc entity
-		at entity.a, dw 1337
-		at entity.b, db 69
-	iend
+x: db "x^", 0
+y: db "y^", 0
 
 section .text
 

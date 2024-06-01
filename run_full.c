@@ -9,15 +9,14 @@ void print() {
         exit(EXIT_FAILURE);
     }
 
-    // TODO: Put this back
-    // char *a = dlsym(handle, "a");
-    // if (!a) {
-    //     fprintf(stderr, "dlsym: %s", dlerror());
-    //     exit(EXIT_FAILURE);
-    // }
-    // puts(a); // Prints "a^"
+    char *a = dlsym(handle, "a");
+    if (!a) {
+        fprintf(stderr, "dlsym: %s", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    puts(a); // Prints "a^"
 
-    int (*fn_a)(void) = dlsym(handle, "fn_a");
+    int (*fn_a)(void) = dlsym(handle, "fn1_c");
     if (!fn_a) {
         fprintf(stderr, "dlsym: %s", dlerror());
         exit(EXIT_FAILURE);

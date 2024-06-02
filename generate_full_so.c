@@ -764,6 +764,7 @@ static void init_data_offsets(void) {
     // TODO: Use the data from the AST
     data_offsets[0] = 0; // "define" label
     for (size_t i = 0; i < 8; i++) {
+        // 3 is the size of the "define" label
         data_offsets[i + 1] = 3 + i * sizeof("a^");
     }
 }

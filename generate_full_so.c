@@ -96,6 +96,7 @@ static size_t symbols_size;
 static bool is_substrs[MAX_SYMBOLS];
 
 static size_t symbol_name_dynstr_offsets[MAX_SYMBOLS];
+static size_t symbol_name_strtab_offsets[MAX_SYMBOLS];
 
 static u32 buckets[MAX_HASH_BUCKETS];
 
@@ -108,7 +109,7 @@ static size_t shuffled_symbols_size;
 static size_t shuffled_symbol_index_to_symbol_index[MAX_SYMBOLS];
 
 static size_t data_offsets[MAX_SYMBOLS];
-static size_t code_offsets[MAX_SYMBOLS];
+static size_t text_offsets[MAX_SYMBOLS];
 
 static u8 bytes[MAX_BYTES];
 static size_t bytes_size;
@@ -270,51 +271,17 @@ static void push_symtab(void) {
     // 0x3068 to 0x3080
     push_symbol_entry(8, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 6, DYNAMIC_OFFSET);
 
-    // TODO: Stop having the name indices and offsets hardcoded here
+    // The symbols are pushed in shuffled_symbols order
+    for (size_t i = 0; i < symbols_size; i++) {
+        size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
-    // "b"
-    // 0x3080 to 0x3098
-    push_symbol_entry(17, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 6);
+        bool is_data = symbol_index < 9; // TODO: Use the data symbol count from the AST
+        u16 shndx = is_data ? SYMTAB_SECTION_HEADER_INDEX : EH_FRAME_SECTION_HEADER_INDEX;
+        u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : TEXT_OFFSET + text_offsets[symbol_index - 9]; // TODO: Use the data symbol count from the AST
 
-    // "f"
-    // 0x3098 to 0x30b0
-    push_symbol_entry(19, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 18);
-
-    // "g"
-    // 0x30b0 to 0x30c8
-    push_symbol_entry(21, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 21);
-
-    // "define"
-    // 0x30c8 to 0x30e0
-    push_symbol_entry(23, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 0);
-
-    // "c"
-    // 0x30e0 to 0x30f8
-    push_symbol_entry(44, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 9);
-
-    // "fn2_c"
-    // 0x30f8 to 0x3110
-    push_symbol_entry(30, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), EH_FRAME_SECTION_HEADER_INDEX, TEXT_OFFSET + 6);
-
-    // "d"
-    // 0x3110 to 0x3128
-    push_symbol_entry(36, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 12);
-
-    // "h"
-    // 0x3128 to 0x3140
-    push_symbol_entry(38, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 24);
-
-    // "fn1_c"
-    // 0x3140 to 0x3158
-    push_symbol_entry(40, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), EH_FRAME_SECTION_HEADER_INDEX, TEXT_OFFSET + 0);
-
-    // "a"
-    // 0x3158 to 0x3170
-    push_symbol_entry(46, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 3);
-
-    // "e"
-    // 0x3170 to 0x3188
-    push_symbol_entry(28, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 15);
+        // The starting offset of 16 is from "full.s" + "_DYNAMIC"
+        push_symbol_entry(16 + symbol_name_strtab_offsets[symbol_index], ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), shndx, offset);
+    }
 
     symtab_size = bytes_size - symtab_offset;
 }
@@ -594,7 +561,7 @@ static void push_dynsym(void) {
 
         bool is_data = symbol_index < 9; // TODO: Use the data symbol count from the AST
         u16 shndx = is_data ? SYMTAB_SECTION_HEADER_INDEX : EH_FRAME_SECTION_HEADER_INDEX;
-        u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : TEXT_OFFSET + code_offsets[symbol_index - 9]; // TODO: Use the data symbol count from the AST
+        u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : TEXT_OFFSET + text_offsets[symbol_index - 9]; // TODO: Use the data symbol count from the AST
 
         push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), shndx, offset);
     }
@@ -786,10 +753,10 @@ static void push_bytes() {
     push_section_headers();
 }
 
-static void init_code_offsets(void) {
+static void init_text_offsets(void) {
     // TODO: Use the data from the AST
     for (size_t i = 0; i < 2; i++) {
-        code_offsets[i] = i * 6; // fn1_c takes 6 bytes of instructions
+        text_offsets[i] = i * 6; // fn1_c takes 6 bytes of instructions
     }
 }
 
@@ -798,6 +765,90 @@ static void init_data_offsets(void) {
     data_offsets[0] = 0; // "define" label
     for (size_t i = 0; i < 8; i++) {
         data_offsets[i + 1] = 3 + i * sizeof("a^");
+    }
+}
+
+// haystack="a" , needle="a" => returns 0
+// haystack="ab", needle="b" => returns 1
+// haystack="a" , needle="b" => returns -1
+// haystack="a" , needle="ab" => returns -1
+static size_t get_ending_index(char *haystack, char *needle) {
+  // Go to the end of the haystack and the needle
+  char *hp = haystack;
+  while (*hp) {
+    hp++;
+  }
+  char *np = needle;
+  while (*np) {
+    np++;
+  }
+
+  // If the needle is longer than the haystack, it can't fit
+  if (np - needle > hp - haystack) {
+    return -1;
+  }
+
+  while (true) {
+    // If one of the characters doesn't match
+    if (*hp != *np) {
+      return -1;
+    }
+
+    // If the needle entirely fits into the end of the haystack,
+    // return the index where needle starts in haystack
+    if (np == needle) {
+      return hp - haystack; 
+    }
+
+    hp--;
+    np--;
+  }
+}
+
+static void init_symbol_name_strtab_offsets(void) {
+    size_t offset = 1;
+
+    static size_t parent_indices[MAX_SYMBOLS];
+    static size_t substr_offsets[MAX_SYMBOLS];
+
+    memset(parent_indices, -1, symbols_size * sizeof(size_t));
+
+    // This function could be optimized from O(n^2) to O(n) with a hash map
+    for (size_t i = 0; i < symbols_size; i++) {
+        size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
+        char *symbol = symbols[symbol_index];
+
+        size_t parent_index;
+        size_t ending_index;
+        for (parent_index = 0; parent_index < symbols_size; parent_index++) {
+            if (symbol_index != parent_index) {
+                ending_index = get_ending_index(symbols[parent_index], symbol);
+                if (ending_index != (size_t)-1) {
+                    break;
+                }
+            }
+        }
+
+        // If symbol wasn't in the end of another symbol
+        bool is_substr = parent_index != symbols_size;
+
+        if (is_substr) {
+            parent_indices[symbol_index] = parent_index;
+            substr_offsets[symbol_index] = ending_index;
+        } else {
+            symbol_name_strtab_offsets[symbol_index] = offset;
+            offset += strlen(symbol) + 1;
+        }
+    }
+
+    // Now that all the parents have been given final offsets in .strtab,
+    // it is clear what index their substring symbols have
+    for (size_t i = 0; i < symbols_size; i++) {
+        size_t parent_index = parent_indices[i];
+        if (parent_index != (size_t)-1) {
+            size_t parent_offset = symbol_name_strtab_offsets[parent_index];
+            symbol_name_strtab_offsets[i] = parent_offset + substr_offsets[i];
+        }
     }
 }
 
@@ -916,43 +967,6 @@ static void generate_shuffled_symbols(void) {
     }
 }
 
-// haystack="a" , needle="a" => returns 0
-// haystack="ab", needle="b" => returns 1
-// haystack="a" , needle="b" => returns -1
-// haystack="a" , needle="ab" => returns -1
-static size_t get_ending_index(char *haystack, char *needle) {
-  // Go to the end of the haystack and the needle
-  char *hp = haystack;
-  while (*hp) {
-    hp++;
-  }
-  char *np = needle;
-  while (*np) {
-    np++;
-  }
-
-  // If the needle is longer than the haystack, it can't fit
-  if (np - needle > hp - haystack) {
-    return -1;
-  }
-
-  while (true) {
-    // If one of the characters doesn't match
-    if (*hp != *np) {
-      return -1;
-    }
-
-    // If the needle entirely fits into the end of the haystack,
-    // return the index where needle starts in haystack
-    if (np == needle) {
-      return hp - haystack; 
-    }
-
-    hp--;
-    np--;
-  }
-}
-
 static void init_symbol_name_dynstr_offsets(void) {
     size_t offset = 1;
 
@@ -993,7 +1007,7 @@ static void init_symbol_name_dynstr_offsets(void) {
     }
 
     // Now that all the parents have been given final offsets in .dynstr,
-    // the symbols that are substrings of them know where they go inside them
+    // it is clear what index their substring symbols have
     for (size_t i = 0; i < symbols_size; i++) {
         size_t parent_index = parent_indices[i];
         if (parent_index != (size_t)-1) {
@@ -1042,8 +1056,10 @@ static void generate_simple_so(void) {
 
     generate_shuffled_symbols();
 
+    init_symbol_name_strtab_offsets();
+
     init_data_offsets();
-    init_code_offsets();
+    init_text_offsets();
 
     push_bytes();
 

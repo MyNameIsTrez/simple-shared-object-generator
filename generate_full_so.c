@@ -205,13 +205,13 @@ static void push_strtab(void) {
     push_byte(0);
     push_string("full.s");
     
-    // Global symbols
+    // Local symbols
     // TODO: Add loop
 
     push_string("_DYNAMIC");
 
-    // Local symbols
-    // TODO: Don't loop through non-global symbols
+    // Global symbols
+    // TODO: Don't loop through local symbols
     for (size_t i = 0; i < symbols_size; i++) {
         size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
@@ -255,68 +255,77 @@ static void push_symtab(void) {
     symtab_offset = bytes_size;
 
     // Null entry
-    // 0x3018 to 0x3030
+    // 0x3020 to 0x3038
     push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
 
     // "full.s" entry
-    // 0x3030 to 0x3048
+    // 0x3038 to 0x3050
     push_symbol_entry(1, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
     // TODO: ? entry
-    // 0x3048 to 0x3060
+    // 0x3050 to 0x3068
     push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_FILE), SHN_ABS, 0);
 
     // "_DYNAMIC" entry
-    // 0x3060 to 0x3078
+    // 0x3068 to 0x3080
     push_symbol_entry(8, ELF32_ST_INFO(STB_LOCAL, STT_OBJECT), 6, DYNAMIC_OFFSET);
 
     // TODO: Stop having the name indices and offsets hardcoded here
 
     // "b"
-    // 0x3078 to 0x3090
-    push_symbol_entry(17, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 3);
+    // 0x3080 to 0x3098
+    push_symbol_entry(17, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 6);
 
     // "f"
-    // 0x3090 to 0x30a8
-    push_symbol_entry(19, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 15);
+    // 0x3098 to 0x30b0
+    push_symbol_entry(19, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 18);
 
     // "g"
-    // 0x30a8 to 0x30c0
-    push_symbol_entry(21, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 18);
+    // 0x30b0 to 0x30c8
+    push_symbol_entry(21, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 21);
+
+    // "define"
+    // 0x30c8 to 0x30e0
+    push_symbol_entry(23, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 0);
 
     // "c"
-    // 0x30c0 to 0x30d8
-    push_symbol_entry(37, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 6);
+    // 0x30e0 to 0x30f8
+    push_symbol_entry(44, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 9);
 
     // "fn2_c"
-    // 0x30d8 to 0x30f0
-    push_symbol_entry(23, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), EH_FRAME_SECTION_HEADER_INDEX, TEXT_OFFSET + 6);
+    // 0x30f8 to 0x3110
+    push_symbol_entry(30, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), EH_FRAME_SECTION_HEADER_INDEX, TEXT_OFFSET + 6);
 
     // "d"
-    // 0x30f0 to 0x3108
-    push_symbol_entry(29, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 9);
+    // 0x3110 to 0x3128
+    push_symbol_entry(36, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 12);
 
     // "h"
-    // 0x3108 to 0x3120
-    push_symbol_entry(31, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 21);
+    // 0x3128 to 0x3140
+    push_symbol_entry(38, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 24);
 
     // "fn1_c"
-    // 0x3120 to 0x3138
-    push_symbol_entry(33, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), EH_FRAME_SECTION_HEADER_INDEX, TEXT_OFFSET + 0);
+    // 0x3140 to 0x3158
+    push_symbol_entry(40, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), EH_FRAME_SECTION_HEADER_INDEX, TEXT_OFFSET + 0);
 
     // "a"
-    // 0x3138 to 0x3150
-    push_symbol_entry(39, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 0);
+    // 0x3158 to 0x3170
+    push_symbol_entry(46, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 3);
 
     // "e"
-    // 0x3150 to 0x3168
-    push_symbol_entry(41, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 12);
+    // 0x3170 to 0x3188
+    push_symbol_entry(28, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), SYMTAB_SECTION_HEADER_INDEX, DATA_OFFSET + 15);
 
     symtab_size = bytes_size - symtab_offset;
 }
 
 static void push_data(void) {
     // TODO: Use the data from the AST
+    
+    // "define" label
+    push_number(1337, 2);
+    push_byte(69);
+
     push_string("a^");
     push_string("b^");
     push_string("c^");
@@ -526,49 +535,49 @@ static void push_section_headers(void) {
     section_headers_offset = bytes_size;
 
     // Null section
-    // 0x31e8 to 0x3228
+    // 0x31f0 to 0x3230
     push_zeros(0x40);
 
     // .hash: Hash section
-    // 0x3228 to 0x3268
+    // 0x3230 to 0x3270
     push_section_header(0x1b, SHT_HASH, SHF_ALLOC, hash_offset, hash_offset, hash_size, 2, 0, 8, 4);
 
     // .dynsym: Dynamic linker symbol table section
-    // 0x3268 to 0x32a8
+    // 0x3270 to 0x32b0
     push_section_header(0x21, SHT_DYNSYM, SHF_ALLOC, dynsym_offset, dynsym_offset, dynsym_size, 3, 1, 8, 0x18);
 
     // .dynstr: String table section
-    // 0x32a8 to 0x32e8
+    // 0x32b0 to 0x32f0
     push_section_header(0x29, SHT_STRTAB, SHF_ALLOC, dynstr_offset, dynstr_offset, dynstr_size, 0, 0, 1, 0);
 
     // .text: Code section
-    // 0x32e8 to 0x3328
+    // 0x32f0 to 0x3330
     push_section_header(0x31, SHT_PROGBITS, SHF_ALLOC | SHF_EXECINSTR, TEXT_OFFSET, TEXT_OFFSET, text_size, 0, 0, 16, 0);
 
     // .eh_frame: Exception stack unwinding section
-    // 0x3328 to 0x3368
+    // 0x3330 to 0x3370
     push_section_header(0x37, SHT_PROGBITS, SHF_ALLOC, EH_FRAME_OFFSET, EH_FRAME_OFFSET, 0, 0, 0, 8, 0);
 
     // .dynamic: Dynamic linking information section
-    // 0x3368 to 0x33a8
+    // 0x3370 to 0x33b0
     push_section_header(0x41, SHT_DYNAMIC, SHF_WRITE | SHF_ALLOC, DYNAMIC_OFFSET, DYNAMIC_OFFSET, 0xb0, 3, 0, 8, 0x10);
 
     // .data: Data section
-    // 0x33a8 to 0x33e8
+    // 0x33b0 to 0x33f0
     push_section_header(0x4a, SHT_PROGBITS, SHF_WRITE | SHF_ALLOC, DATA_OFFSET, DATA_OFFSET, data_size, 0, 0, 4, 0);
 
     // .symtab: Symbol table section
-    // 0x33e8 to 0x3428
+    // 0x33f0 to 0x3430
     // The "link" is the section header index of the associated string table
     // The "info" of 4 is the symbol table index of the first non-local symbol, which is the 5th entry in push_symtab(), the global "b" symbol
     push_section_header(0x1, SHT_SYMTAB, 0, 0, symtab_offset, symtab_size, STRTAB_SECTION_HEADER_INDEX, 4, 8, SYMTAB_ENTRY_SIZE);
 
     // .strtab: String table section
-    // 0x3428 to 0x3468
+    // 0x3430 to 0x3470
     push_section_header(0x09, SHT_PROGBITS | SHT_SYMTAB, 0, 0, strtab_offset, strtab_size, 0, 0, 1, 0);
 
     // .shstrtab: Section header string table section
-    // 0x3468 to end
+    // 0x3470 to end
     push_section_header(0x11, SHT_PROGBITS | SHT_SYMTAB, 0, 0, shstrtab_offset, shstrtab_size, 0, 0, 1, 0);
 }
 
@@ -576,16 +585,16 @@ static void push_dynsym(void) {
     dynsym_offset = bytes_size;
 
     // Null entry
-    // 0x1d0 to 0x1e8
+    // 0x1d8 to 0x1f0
     push_symbol_entry(0, ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE), SHN_UNDEF, 0);
 
     // The symbols are pushed in shuffled_symbols order
     for (size_t i = 0; i < symbols_size; i++) {
         size_t symbol_index = shuffled_symbol_index_to_symbol_index[i];
 
-        bool is_data = symbol_index < 8; // TODO: Use the data symbol count from the AST
+        bool is_data = symbol_index < 9; // TODO: Use the data symbol count from the AST
         u16 shndx = is_data ? SYMTAB_SECTION_HEADER_INDEX : EH_FRAME_SECTION_HEADER_INDEX;
-        u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : TEXT_OFFSET + code_offsets[symbol_index - 8]; // TODO: Use the data symbol count from the AST
+        u32 offset = is_data ? DATA_OFFSET + data_offsets[symbol_index] : TEXT_OFFSET + code_offsets[symbol_index - 9]; // TODO: Use the data symbol count from the AST
 
         push_symbol_entry(symbol_name_dynstr_offsets[symbol_index], ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE), shndx, offset);
     }
@@ -611,9 +620,15 @@ static void push_program_headers(void) {
     push_program_header(PT_LOAD, PF_R, 0, 0, 0, 0, 0, 0x1000);
 
     // TODO: Use the data from the AST
-    // TODO: `(symbols_size - 2)` is a temporary way to ignore the fn1_c and fn2_c labels
-    // Note that it's possible to have data that isn't exported
-    data_size = (symbols_size - 2) * sizeof("a^");
+    data_size += 3; // "define" label
+    data_size += sizeof("a^");
+    data_size += sizeof("b^");
+    data_size += sizeof("c^");
+    data_size += sizeof("d^");
+    data_size += sizeof("e^");
+    data_size += sizeof("f^");
+    data_size += sizeof("g^");
+    data_size += sizeof("h^");
 
     // .text segment
     // 0x78 to 0xb0
@@ -734,16 +749,16 @@ static void push_bytes() {
     // 0x40 to 0x190
     push_program_headers();
 
-    // 0x190 to 0x1d0
+    // 0x190 to 0x1d8
     push_hash();
 
-    // 0x1d0 to 0x2d8
+    // 0x1d8 to 0x2f8
     push_dynsym();
 
-    // 0x2d8 to 0x2f8
+    // 0x2f8 to 0x318
     push_dynstr();
 
-    // 0x2f8 to 0x1000
+    // 0x318 to 0x1000
     push_zeros(TEXT_OFFSET - bytes_size);
 
     // 0x1000 to 0x1010
@@ -755,19 +770,19 @@ static void push_bytes() {
     // 0x2f50 to 0x3000
     push_dynamic();
 
-    // 0x3000 to 0x3018
+    // 0x3000 to 0x3020
     push_data();
 
-    // 0x3018 to 0x3168
+    // 0x3020 to 0x3170
     push_symtab();
 
-    // 0x3168 to 0x3193
+    // 0x3170 to 0x31a0
     push_strtab();
 
-    // 0x3193 to 0x31e8
+    // 0x31a0 to 0x31f0
     push_shstrtab();
 
-    // 0x31e8 to end
+    // 0x31f0 to end
     push_section_headers();
 }
 
@@ -780,8 +795,9 @@ static void init_code_offsets(void) {
 
 static void init_data_offsets(void) {
     // TODO: Use the data from the AST
+    data_offsets[0] = 0; // "define" label
     for (size_t i = 0; i < 8; i++) {
-        data_offsets[i] = i * sizeof("a^");
+        data_offsets[i + 1] = 3 + i * sizeof("a^");
     }
 }
 
@@ -1007,7 +1023,7 @@ static void generate_simple_so(void) {
     reset();
 
     // TODO: Use the symbols from the AST
-    // push_symbol("define");
+    push_symbol("define");
     push_symbol("a");
     push_symbol("b");
     push_symbol("c");
@@ -1016,8 +1032,6 @@ static void generate_simple_so(void) {
     push_symbol("f");
     push_symbol("g");
     push_symbol("h");
-    push_symbol("x");
-    push_symbol("y");
     push_symbol("fn1_c");
     push_symbol("fn2_c");
 
